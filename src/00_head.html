@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>THE CHRONICLE ENGINE — a procedural world</title>
+<style>
+:root{
+  --bg:#0a0907; --bg2:#100e0b; --panel:#15120d; --panel2:#1c1811;
+  --edge:#2c2618; --edge2:#3d3421;
+  --ink:#d9cfb6; --ink-dim:#8d8471; --ink-faint:#5f5847;
+  --gold:#c9a247; --gold-dim:#8a6f30;
+  --blood:#b04030; --blood-dim:#6e281e;
+  --sea:#2c5570; --leaf:#4d7a3a; --frost:#7fa8c0; --arcane:#8a6fc0;
+  --hl:#e8dcc0;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:
+    radial-gradient(1200px 700px at 20% -10%, #17130c 0%, transparent 60%),
+    radial-gradient(900px 600px at 110% 110%, #14110b 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink); font-family:var(--mono); font-size:13px; line-height:1.45;
+  overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:#0d0b08}
+::-webkit-scrollbar-thumb{background:#2e2718;border:1px solid #3a3120}
+::-webkit-scrollbar-thumb:hover{background:#443a24}
+
+#app{display:flex;flex-direction:column;height:100%}
+
+/* ---------- top bar ---------- */
+#topbar{
+  display:flex;align-items:center;gap:10px;padding:6px 10px;
+  background:linear-gradient(#191509,#100d08);
+  border-bottom:1px solid var(--edge2); flex:0 0 auto; flex-wrap:wrap;
+}
+#brand{font-weight:700;letter-spacing:.22em;color:var(--gold);white-space:nowrap;text-shadow:0 0 14px rgba(201,162,71,.25)}
+#brand small{display:block;letter-spacing:.12em;color:var(--ink-faint);font-weight:400;font-size:9px}
+.grp{display:flex;align-items:center;gap:4px}
+.sep{width:1px;height:22px;background:var(--edge2)}
+.btn{
+  background:linear-gradient(#221d12,#181409);border:1px solid var(--edge2);
+  color:var(--ink);padding:3px 9px;cursor:pointer;border-radius:2px;white-space:nowrap;
+}
+.btn:hover{border-color:var(--gold-dim);color:var(--hl);background:linear-gradient(#2c2514,#201a0e)}
+.btn:active{transform:translateY(1px)}
+.btn.on{border-color:var(--gold);color:var(--gold);box-shadow:inset 0 0 12px rgba(201,162,71,.14)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.sm{padding:1px 6px;font-size:11px}
+input[type=text],input[type=number],select{
+  background:#0b0906;border:1px solid var(--edge2);padding:3px 6px;border-radius:2px;color:var(--ink)
+}
+input[type=text]:focus,input[type=number]:focus{outline:none;border-color:var(--gold-dim)}
+label.lb{color:var(--ink-faint);font-size:11px;letter-spacing:.08em}
+#clock{color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
+#clock b{font-size:15px}
+#era{color:var(--ink-dim);font-size:11px}
+
+/* ---------- main ---------- */
+#main{display:flex;flex:1 1 auto;min-height:0}
+#left{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;border-right:1px solid var(--edge2)}
+#modebar{display:flex;gap:2px;padding:4px 6px;background:var(--bg2);border-bottom:1px solid var(--edge);overflow-x:auto;flex:0 0 auto}
+.mode{background:transparent;border:1px solid transparent;color:var(--ink-faint);padding:2px 7px;cursor:pointer;white-space:nowrap;border-radius:2px;font-size:11px;letter-spacing:.06em}
+.mode:hover{color:var(--ink)}
+.mode.on{color:var(--gold);border-color:var(--edge2);background:#1a1509}
+#mapwrap{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;background:#06050a;cursor:crosshair}
+#map{display:block;position:absolute;left:0;top:0}
+#hover{
+  position:absolute;pointer-events:none;background:rgba(8,7,5,.96);border:1px solid var(--edge2);
+  padding:5px 8px;font-size:11px;max-width:340px;display:none;z-index:20;box-shadow:0 6px 22px #000;white-space:pre-wrap;line-height:1.4
+}
+#minimap{position:absolute;right:8px;top:8px;border:1px solid var(--edge2);background:#06050a;opacity:.9;z-index:10;cursor:pointer}
+#legend{
+  flex:0 0 auto;padding:4px 8px;background:var(--bg2);border-top:1px solid var(--edge);
+  font-size:11px;color:var(--ink-dim);display:flex;gap:12px;flex-wrap:wrap;max-height:74px;overflow:auto
+}
+#legend i{font-style:normal;display:inline-block;width:9px;text-align:center;margin-right:3px}
+#gennote{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:rgba(6,5,4,.92);z-index:30}
+#gennote .t{color:var(--gold);letter-spacing:.3em}
+#bar{width:420px;max-width:70vw;height:3px;background:#221d12;border:1px solid var(--edge2)}
+#bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--gold-dim),var(--gold))}
+#genmsg{color:var(--ink-dim);font-size:11px;min-height:16px}
+
+/* ---------- right ---------- */
+#right{flex:0 0 430px;display:flex;flex-direction:column;background:var(--panel);min-width:0}
+#tabs{display:flex;border-bottom:1px solid var(--edge2);background:var(--bg2);flex:0 0 auto}
+.tab{flex:1;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--ink-faint);padding:5px 2px;cursor:pointer;font-size:11px;letter-spacing:.1em}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold);background:#191408}
+.pane{flex:1 1 auto;overflow:auto;padding:8px 10px;display:none}
+.pane.on{display:block}
+#chronicle .ev{margin:0 0 5px;padding-left:52px;text-indent:-52px;font-size:12px;color:var(--ink-dim)}
+#chronicle .ev .yr{display:inline-block;width:46px;text-indent:0;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.ev.s3{color:var(--ink)}
+.ev.s4{color:var(--hl)}
+.ev.s5{color:var(--gold)}
+.ev.s5 .yr{color:var(--gold-dim)}
+.ev.war{color:#d08a72}
+.ev.doom{color:var(--blood);text-shadow:0 0 10px rgba(176,64,48,.3)}
+a.lk{color:var(--gold);cursor:pointer;text-decoration:none;border-bottom:1px dotted rgba(201,162,71,.35)}
+a.lk:hover{color:#f0d48a;background:rgba(201,162,71,.1)}
+a.lk.p{color:#9fc0da;border-bottom-color:rgba(159,192,218,.3)}
+a.lk.c{color:#b6a0d8;border-bottom-color:rgba(182,160,216,.3)}
+a.lk.s{color:#9ec48a;border-bottom-color:rgba(158,196,138,.3)}
+a.lk.f{color:#d8b98a;border-bottom-color:rgba(216,185,138,.3)}
+a.lk.a{color:#d88a8a;border-bottom-color:rgba(216,138,138,.3)}
+h3.hd{margin:0 0 6px;color:var(--gold);font-size:13px;letter-spacing:.14em;border-bottom:1px solid var(--edge2);padding-bottom:3px;font-weight:600}
+h4.sub{margin:10px 0 3px;color:var(--ink-dim);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.kv{display:grid;grid-template-columns:112px 1fr;gap:1px 8px;font-size:12px}
+.kv .k{color:var(--ink-faint)}
+.kv .v{color:var(--ink)}
+table.t{width:100%;border-collapse:collapse;font-size:11.5px}
+table.t th{text-align:left;color:var(--ink-faint);font-weight:400;border-bottom:1px solid var(--edge);padding:2px 4px;position:sticky;top:-8px;background:var(--panel)}
+table.t td{padding:1px 4px;border-bottom:1px solid #1a160f;vertical-align:top}
+table.t tr:hover td{background:#1b1710}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:#1c1810;border:1px solid var(--edge);position:relative;overflow:hidden}
+.bar>span{position:absolute;left:0;top:0;bottom:0;background:var(--gold-dim)}
+.tag{display:inline-block;border:1px solid var(--edge2);padding:0 4px;margin:1px 2px 1px 0;font-size:10.5px;color:var(--ink-dim);border-radius:2px}
+.tag.g{color:var(--gold);border-color:var(--gold-dim)}
+.tag.b{color:var(--blood);border-color:var(--blood-dim)}
+.tag.a{color:var(--arcane);border-color:#4c3b6b}
+.tree{font-size:11.5px;white-space:pre;line-height:1.35;color:var(--ink-dim);overflow:auto}
+.quote{border-left:2px solid var(--gold-dim);padding:2px 0 2px 8px;margin:5px 0;color:var(--ink-dim);font-style:italic}
+.crumb{font-size:11px;color:var(--ink-faint);margin-bottom:4px}
+.crumb a{cursor:pointer;color:var(--gold-dim)}
+.crumb a:hover{color:var(--gold)}
+.muted{color:var(--ink-faint)}
+.dead{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:rgba(176,64,48,.5)}
+#statusbar{
+  flex:0 0 auto;display:flex;gap:14px;padding:3px 10px;font-size:11px;color:var(--ink-faint);
+  background:linear-gradient(#0e0c08,#141009);border-top:1px solid var(--edge2);flex-wrap:wrap
+}
+#statusbar b{color:var(--ink-dim);font-weight:400}
+.spark{display:inline-block;vertical-align:middle}
+.rowbtns{display:flex;gap:4px;flex-wrap:wrap;margin:4px 0}
+#searchbox{width:100%;margin-bottom:6px}
+.hint{font-size:10.5px;color:var(--ink-faint);margin-top:2px}
+@media (max-width:1100px){ #right{flex-basis:340px} }
+@media (max-width:820px){ #main{flex-direction:column} #right{flex:1 1 auto;border-top:1px solid var(--edge2)} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div id="brand">THE CHRONICLE ENGINE<small>a world that writes itself</small></div>
+    <div class="sep"></div>
+    <div class="grp">
+      <label class="lb">SEED</label>
+      <input type="text" id="seed" size="10" value="">
+      <button class="btn" id="btnGen">FORGE WORLD</button>
+      <button class="btn sm" id="btnRandom">&#9860;</button>
+    </div>
+    <div class="sep"></div>
+    <div class="grp">
+      <button class="btn" id="btnPlay">&#9654; RUN</button>
+      <button class="btn sm" id="btnStep">+1y</button>
+      <button class="btn sm" id="btnStep10">+10y</button>
+      <button class="btn sm" id="btnStep100">+100y</button>
+      <button class="btn sm" id="btnStep500">+500y</button>
+      <label class="lb">SPD</label>
+      <input type="range" id="speed" min="1" max="8" value="4" style="width:80px">
+    </div>
+    <div class="sep"></div>
+    <div id="clock"><b>Year 0</b> <span id="mon">Frostmoon</span></div>
+    <div id="era"></div>
+    <div style="flex:1"></div>
+    <div class="grp">
+      <button class="btn sm" id="btnHelp">?</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="left">
+      <div id="modebar"></div>
+      <div id="mapwrap">
+        <canvas id="map"></canvas>
+        <canvas id="minimap" width="200" height="114"></canvas>
+        <div id="hover"></div>
+        <div id="gennote">
+          <div class="t">FORGING THE WORLD</div>
+          <div id="bar"><div></div></div>
+          <div id="genmsg">&nbsp;</div>
+        </div>
+      </div>
+      <div id="legend"></div>
+    </div>
+    <div id="right">
+      <div id="tabs">
+        <button class="tab on" data-p="chronicle">CHRONICLE</button>
+        <button class="tab" data-p="inspect">INSPECT</button>
+        <button class="tab" data-p="world">WORLD</button>
+        <button class="tab" data-p="search">SEARCH</button>
+      </div>
+      <div class="pane on" id="chronicle"></div>
+      <div class="pane" id="inspect"></div>
+      <div class="pane" id="world"></div>
+      <div class="pane" id="search"></div>
+      <div id="statusbar"></div>
+    </div>
+  </div>
+</div>
+<script>
