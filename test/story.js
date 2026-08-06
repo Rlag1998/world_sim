@@ -5,7 +5,7 @@ let src=files.map(f=>fs.readFileSync(path.join(__dirname,'../src',f),'utf8')).jo
 src+="\n;globalThis.__g=()=>({SITES,POLS,CHARS,LIVING,WARS,ARMIES,EVENTS,LANGS,CULTURES,FAITHS,ARTS,RUINS,PROPHS,DYNS,MAGIC,YEAR,STAT,SPECIES,POWERS,CATACLYSMS,LEGENDS,retell,polityPop,C,P,fullName,sigilText,TECHS,TECHI,TRAITS,CBI});";
 const ctx={console,performance:{now:()=>Number(process.hrtime.bigint()/1000n)/1000},Math,Date,JSON,Set,Map,
   Float32Array,Float64Array,Int32Array,Int16Array,Int8Array,Uint8Array,Uint16Array,Array,Object,String,Number,parseInt,isNaN};
-ctx.globalThis=ctx; ctx.MAPDIRTY=false;
+ctx.globalThis=ctx; ctx.MAPDIRTY=false; ctx.WORLDNAME=''; ctx.VIEWDIRTY=false; ctx.HILITE={t:null,i:-1};
 vm.createContext(ctx); vm.runInContext(src,ctx,{filename:'ws.js'});
 const seed=+(process.argv[2]||12345), years=+(process.argv[3]||600);
 const gg=ctx.worldgen(seed); while(!gg.next().done);

@@ -77,7 +77,7 @@ label.lb{color:var(--ink-faint);font-size:11px;letter-spacing:.08em}
 #minimap{position:absolute;right:8px;top:8px;border:1px solid var(--edge2);background:#06050a;opacity:.9;z-index:10;cursor:pointer}
 #legend{
   flex:0 0 auto;padding:4px 8px;background:var(--bg2);border-top:1px solid var(--edge);
-  font-size:11px;color:var(--ink-dim);display:flex;gap:12px;flex-wrap:wrap;max-height:74px;overflow:auto
+  font-size:11px;color:var(--ink-dim);display:flex;gap:10px;flex-wrap:wrap;max-height:56px;overflow:auto;align-items:center
 }
 #legend i{font-style:normal;display:inline-block;width:9px;text-align:center;margin-right:3px}
 #gennote{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:rgba(6,5,4,.92);z-index:30}
@@ -94,14 +94,33 @@ label.lb{color:var(--ink-faint);font-size:11px;letter-spacing:.08em}
 .tab.on{color:var(--gold);border-bottom-color:var(--gold);background:#191408}
 .pane{flex:1 1 auto;overflow:auto;padding:8px 10px;display:none}
 .pane.on{display:block}
-#chronicle .ev{margin:0 0 5px;padding-left:52px;text-indent:-52px;font-size:12px;color:var(--ink-dim)}
+#chronicle .ev{margin:0 0 4px;padding:1px 0 1px 22px;text-indent:-22px;font-size:12px;color:var(--ink-dim);line-height:1.5}
 #chronicle .ev .yr{display:inline-block;width:46px;text-indent:0;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+#chronicle .ev .mk{display:inline-block;width:16px;text-indent:0;font-style:normal;text-align:center;opacity:.85}
+.yrhead{display:flex;align-items:center;gap:8px;margin:14px 0 6px;color:var(--gold-dim);
+  font-size:10.5px;letter-spacing:.22em;text-transform:uppercase}
+.yrhead:first-of-type{margin-top:4px}
+.yrhead:after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--edge2),transparent)}
 .ev.s3{color:var(--ink)}
 .ev.s4{color:var(--hl)}
-.ev.s5{color:var(--gold)}
-.ev.s5 .yr{color:var(--gold-dim)}
-.ev.war{color:#d08a72}
-.ev.doom{color:var(--blood);text-shadow:0 0 10px rgba(176,64,48,.3)}
+.ev.s5{color:var(--gold);background:linear-gradient(90deg,rgba(201,162,71,.07),transparent);
+  border-left:2px solid var(--gold-dim);padding-left:20px;margin-left:-22px;text-indent:0}
+.ev.s5 .mk{color:var(--gold)}
+.k-war .mk{color:#d89070}
+.k-doom .mk{color:#c05242}
+.k-crown .mk{color:#d8b45a}
+.k-faith .mk{color:#d8b98a}
+.k-myth .mk{color:#a98ad8}
+.k-lore .mk{color:#8ab0c8}
+.k-folk .mk{color:#9ab48a}
+.k-peace .mk{color:#8ac0a8}
+.ev.k-doom{color:#c98878}
+.ev.s5.k-doom{color:#e08a70;border-left-color:var(--blood-dim);
+  background:linear-gradient(90deg,rgba(176,64,48,.10),transparent)}
+.intro{border:1px solid var(--edge2);background:#191408;padding:8px 10px;margin:6px 0 10px;font-size:12px;line-height:1.55}
+.intro b{color:var(--gold)}
+.intro ol{margin:6px 0 6px 16px;padding:0}
+.intro li{margin:2px 0}
 a.lk{color:var(--gold);cursor:pointer;text-decoration:none;border-bottom:1px dotted rgba(201,162,71,.35)}
 a.lk:hover{color:#f0d48a;background:rgba(201,162,71,.1)}
 a.lk.p{color:#9fc0da;border-bottom-color:rgba(159,192,218,.3)}

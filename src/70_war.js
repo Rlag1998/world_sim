@@ -508,7 +508,7 @@ function beginSiege(a,s,year,r){
   if(s.occupied>=0 && w0 && sideOf(w0,s.occupied)===a.side){ a.dest=-1; a.path=null; return; }
   a.siege={site:s.id, prog:0, stores: 12+s.walls*10+s.granary*0.02, start:year};
   s.siege={by:a.pol, army:a.id, since:year};
-  chron(year, s.tier>=3?4:(s.tier>=1?3:2),'siege',`${PL(P(a.pol))} lays siege to ${SL(s)}.`,
+  chron(year, s.tier>=3?4:(s.tier>=2?3:2),'siege',`${PL(P(a.pol))} lays siege to ${SL(s)}.`,
     {pols:[a.pol,s.polity],sites:[s.id],wars:[a.war]});
 }
 function siegeStep(a,year,r){
@@ -561,7 +561,7 @@ function captureSite(a,s,year,r,stormed){
   if(chance(r,clamp(sackP,0,0.85))){
     sack(s,a,year,r,cmd);
   }else{
-    chron(year, s.tier>=3?4:3,'take',`${SL(s)} opens its gates to ${PL(p)}${cmd? ' and '+CHL(cmd):''}.`,
+    chron(year, s.tier>=3?4:(s.tier>=2?3:2),'take',`${SL(s)} opens its gates to ${PL(p)}${cmd? ' and '+CHL(cmd):''}.`,
       {sites:[s.id],pols:[p.id],wars:[w?w.id:-1],chars:cmd?[cmd.id]:[]});
   }
   if(cmd){ cmd.prestige+=40+s.pop/300; cmd.conquests++; }

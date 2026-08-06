@@ -66,6 +66,7 @@ function allocTiles(){
   T.land  = new Uint8Array(NT);
   T.coast = new Uint8Array(NT);
   T.distSea=new Int16Array(NT);
+  T.distLand=new Int16Array(NT);  // for ocean tiles: how far to the nearest shore
   T.temp  = new Float32Array(NT);   // mean annual °C
   T.tvar  = new Float32Array(NT);   // seasonal half-amplitude °C
   T.rain  = new Float32Array(NT);   // mm/yr
@@ -389,6 +390,22 @@ function distanceFromSea(){
   for(let i=0;i<NT;i++){
     T.coast[i]=0;
     if(T.land[i]&&T.distSea[i]===1) T.coast[i]=1;
+  }
+  /* and the mirror field: how far out to sea are we? this is what lets the
+     map draw a shelf, a sea and an abyss instead of one flat blue. */
+  T.distLand.fill(0);
+  const q2=new Int32Array(NT); let h2=0,t2=0;
+  const seen2=new Uint8Array(NT);
+  for(let i=0;i<NT;i++) if(T.land[i]){ q2[t2++]=i; seen2[i]=1; }
+  while(h2<t2){
+    const i=q2[h2++]; const d=T.distLand[i];
+    const x=i%W,y=(i/W)|0;
+    for(let k=0;k<8;k++){
+      const ny=y+N8Y[k]; if(ny<0||ny>=H) continue;
+      const j=wrapx(x+N8X[k])+ny*W;
+      if(seen2[j]) continue; seen2[j]=1;
+      T.distLand[j]=Math.min(400,d+1); q2[t2++]=j;
+    }
   }
 }
 

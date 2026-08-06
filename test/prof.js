@@ -12,7 +12,7 @@ src=src.replace(/\bfunction ([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/g,
 src+="\n;globalThis.__snap=()=>({SITES,POLS,CHARS,LIVING,WARS,ARMIES,EVENTS,LANGS,CULTURES,FAITHS,ARTS,RUINS,PROPHS,DYNS,MAGIC,YEAR,STAT});";
 const ctx={console,performance:{now:()=>Number(process.hrtime.bigint()/1000n)/1000},Math,Date,JSON,Set,Map,
   Float32Array,Float64Array,Int32Array,Int16Array,Int8Array,Uint8Array,Uint16Array,Array,Object,String,Number,parseInt,isNaN};
-ctx.globalThis=ctx; ctx.MAPDIRTY=false;
+ctx.globalThis=ctx; ctx.MAPDIRTY=false; ctx.WORLDNAME=''; ctx.VIEWDIRTY=false; ctx.HILITE={t:null,i:-1};
 let _mc=0; const _ring=new Array(48).fill(''); let _ri=0;
 let _armed=false;
 ctx.__arm=()=>{_armed=true;};

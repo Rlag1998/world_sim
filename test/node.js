@@ -6,7 +6,7 @@ let src=files.map(f=>fs.readFileSync(path.join(__dirname,'../src',f),'utf8')).jo
 const ctx={console,performance:{now:()=>Number(process.hrtime.bigint()/1000n)/1000},Math,Date,JSON,Set,Map,
   Float32Array,Float64Array,Int32Array,Int16Array,Int8Array,Uint8Array,Uint16Array,Array,Object,String,Number,parseInt,isNaN};
 ctx.globalThis=ctx;
-ctx.MAPDIRTY=false;
+ctx.MAPDIRTY=false; ctx.WORLDNAME=''; ctx.VIEWDIRTY=false; ctx.HILITE={t:null,i:-1};
 vm.createContext(ctx);
 src += "\n;globalThis.__G={SITES,POLS,CHARS,DYNS,LIVING,WARS,ARMIES,EVENTS,LANGS,CULTURES,FAITHS,ARTS,RUINS,PROPHS,SPECIES,STAT,T,BIOME,NT,MAGIC,POWERS,CATACLYSMS};"
      + "\nglobalThis.__snap=()=>({SITES,POLS,CHARS,LIVING,WARS,ARMIES,EVENTS,LANGS,CULTURES,FAITHS,ARTS,RUINS,PROPHS,DYNS,MAGIC,YEAR});";

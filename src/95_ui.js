@@ -10,36 +10,76 @@ let FILTER={sev:3, kind:'', ent:null};
 const $=id=>document.getElementById(id);
 
 /* --------------------------------------------------------------- chronicle  */
-const KINDCLASS={war:'war',battle:'war',sack:'doom',siege:'war',civil:'doom',plague:'doom',
-  famine:'doom',ruin:'doom',schism:'doom',partition:'doom',extinct:'doom',revolt:'war',
-  darkage:'doom',murder:'doom',coup:'doom',fulfil:'',prophecy:'',genesis:''};
+/* Each kind of event gets a mark and a colour, so the shape of a century is
+   visible before a word of it is read. */
+const KINDMARK={
+  war:['⚔','war'], battle:['⚔','war'], siege:['⚑','war'], assault:['⚑','war'],
+  ally:['⚑','war'], refuse:['⚑','war'], attrition:['⚑','war'], capture:['⚑','war'],
+  take:['⚑','war'], civil:['⚔','doom'], revolt:['⚔','doom'], free:['⚑','war'],
+  peace:['⚖','peace'], oath:['⚖','peace'], submit:['⚖','peace'], alliance:['⚖','peace'],
+  sack:['☠','doom'], ruin:['☠','doom'], murder:['☠','doom'], coup:['☠','doom'],
+  execute:['☠','doom'], wedding:['☠','doom'], foiled:['☠','doom'], prison:['☠','doom'],
+  plague:['☠','doom'], famine:['☠','doom'], darkage:['☠','doom'], winter:['❄','doom'],
+  volcano:['❄','doom'], fade:['❄','myth'], migrate:['⌂','folk'],
+  crown:['♔','crown'], inherit:['♔','crown'], seize:['♔','crown'], claim:['♔','crown'],
+  partition:['♔','doom'], extinct:['♔','doom'], newhouse:['♔','crown'], fabricate:['♔','crown'],
+  faction:['♔','crown'], fall:['♔','doom'], union:['♔','crown'], marry:['♥','folk'], bastard:['♥','folk'],
+  death:['†','folk'], grow:['⌂','folk'], found:['⌂','folk'], build:['⌂','folk'],
+  road:['⌂','folk'], refound:['⌂','folk'], tech:['✎','lore'], recover:['✎','lore'],
+  split:['✎','lore'], convert:['✝','faith'], schism:['✝','faith'],
+  prophecy:['☾','myth'], fulfil:['☾','myth'], subvert:['☾','myth'],
+  forge:['✦','myth'], delve:['✦','myth'], delvedeath:['✦','myth'], curse:['✦','myth'],
+  theft:['✦','myth'], elder:['✦','myth'], genesis:['✧','myth']
+};
 function renderChronicle(){
   const box=$('chronicle');
   const out=[];
-  out.push(`<div class="rowbtns">
+  out.push(`<div class="rowbtns" id="sevbar">
     <button class="btn sm ${FILTER.sev<=1?'on':''}" data-sev="1">ALL</button>
     <button class="btn sm ${FILTER.sev===2?'on':''}" data-sev="2">NOTABLE</button>
     <button class="btn sm ${FILTER.sev===3?'on':''}" data-sev="3">MAJOR</button>
     <button class="btn sm ${FILTER.sev>=4?'on':''}" data-sev="4">GREAT DEEDS</button>
-    ${FILTER.ent? `<button class="btn sm on" id="clrent">◀ ${esc(FILTER.entName||'entity')}</button>`:''}
+    ${FILTER.ent? `<button class="btn sm on" id="clrent">✕ following ${esc(FILTER.entName||'…')}</button>`:''}
   </div>`);
+  if(YEAR<6 && !FILTER.ent && !INTRODONE) out.push(introCard());
   let list=EVENTS;
   if(FILTER.ent){
     const ids=new Set(FILTER.ent);
     list=EVENTS.filter(e=>ids.has(e.i));
   }
   const items=[];
-  for(let k=list.length-1;k>=0&&items.length<420;k--){
+  for(let k=list.length-1;k>=0&&items.length<400;k--){
     const e=list[k];
     if(e.s<FILTER.sev) continue;
     items.push(e);
   }
+  let lastYear=null;
   for(const e of items){
-    const cls=KINDCLASS[e.k]||'';
-    out.push(`<p class="ev s${e.s} ${cls}"><span class="yr">${e.y<0?'—':e.y}</span>${e.t}</p>`);
+    if(e.y!==lastYear){
+      lastYear=e.y;
+      out.push(`<div class="yrhead"><span>${e.y<0?'before the reckoning':'Year '+e.y}</span></div>`);
+    }
+    const m=KINDMARK[e.k]||['·',''];
+    out.push(`<p class="ev s${e.s} k-${m[1]}"><i class="mk">${m[0]}</i>${e.t}</p>`);
   }
-  if(!items.length) out.push('<p class="muted">Nothing yet recorded at this weight.</p>');
+  if(!items.length) out.push('<p class="muted">Nothing recorded at this weight yet. Press <b>RUN</b>, or lower the filter to ALL.</p>');
   box.innerHTML=out.join('');
+}
+let INTRODONE=false;
+function introCard(){
+  return `<div class="intro">
+    <b>${esc(WORLDNAME||'This world')}</b> has just begun to keep records.
+    <ol>
+      <li>Press <b>▶ RUN</b> (or <b>+100y</b>) and watch the chronicle fill.</li>
+      <li>Switch the map to <b>REALMS</b> to see borders form, <b>PEOPLES</b> to watch tongues split,
+          <b>POWER</b> to watch the magic drain out of the world.</li>
+      <li>Every coloured name is a link. Click one and follow it — to its house, its wars,
+          its enemies, the relic it carries.</li>
+    </ol>
+    <span class="muted">Nothing here is scripted. The wars have causes you can read; the famines have empty granaries behind them.</span>
+    <div class="rowbtns"><button class="btn sm" id="introhide">got it</button>
+      <button class="btn sm" id="introhelp">what am I looking at?</button></div>
+  </div>`;
 }
 
 /* --------------------------------------------------------------- inspector  */
@@ -47,12 +87,13 @@ function inspect(t,i,noPush){
   if(!noPush&&SEL.t) NAVSTACK.push({t:SEL.t,i:SEL.i});
   if(NAVSTACK.length>40) NAVSTACK.shift();
   SEL={t,i:+i};
+  HILITE={t,i:+i}; VIEWDIRTY=true;
   setPane('inspect');
   renderInspect();
 }
 function back(){
   const p=NAVSTACK.pop();
-  if(p){ SEL=p; renderInspect(); }
+  if(p){ SEL=p; HILITE={t:p.t,i:p.i}; VIEWDIRTY=true; renderInspect(); }
 }
 function crumb(){
   return NAVSTACK.length? `<div class="crumb"><a onclick="back()">◀ back</a></div>` : '';
@@ -94,6 +135,24 @@ function renderInspect(){
   box.innerHTML=crumb()+(h||'<p class="muted">Nothing here.</p>');
 }
 
+/* follow a house, a realm, a town or a person through the chronicle */
+function followEntity(kind,id){
+  let ev=null, nm='';
+  if(kind==='c'&&CHARS[id]){ ev=CHARS[id].ev; nm=shortName(CHARS[id]); }
+  else if(kind==='s'&&SITES[id]){ ev=SITES[id].ev; nm=SITES[id].name; }
+  else if(kind==='p'&&POLS[id]){ ev=POLS[id].history; nm=POLS[id].name; }
+  else if(kind==='d'&&DYNS[id]){
+    const d=DYNS[id]; ev=[]; nm='House '+d.name;
+    for(const m of d.members){ const c=CHARS[m]; if(c&&c.ev) for(const x of c.ev) ev.push(x); }
+    ev.sort((a,b)=>a-b);
+  }
+  if(!ev||!ev.length){ return; }
+  FILTER.ent=ev.slice(); FILTER.entName=nm; FILTER.sev=1;
+  setPane('chronicle'); renderChronicle();
+}
+function followBtn(kind,id,label){
+  return `<button class="btn sm" data-follow="${kind}" data-fid="${id}">follow ${esc(label)} in the chronicle</button>`;
+}
 function evList(ids,limit){
   if(!ids||!ids.length) return '<p class="muted">— no record —</p>';
   const out=[];
@@ -153,12 +212,13 @@ function viewChar(ch){
     const rows=[...ch.rel.entries()].sort((a,b)=>Math.abs(b[1].v)-Math.abs(a[1].v)).slice(0,10);
     for(const [k,e] of rows){
       const o=C(k); if(!o) continue;
-      const why=e.c.length? e.c[e.c.length-1].t : '';
+      let why=''; { let bw=-1; for(const q2 of e.c){ const a=Math.abs(q2.v); if(a>bw){bw=a;why=q2.t;} } }
       h+=`<tr><td>${CHL(o)}</td><td class="num" style="color:${e.v<0?'var(--blood)':'var(--leaf)'}">${e.v>0?'+':''}${Math.round(e.v)}</td><td class="muted">${esc(why)}</td></tr>`;
     }
     h+=`</table>`;
   }
   h+=`<h4 class="sub">Deeds recorded</h4>${evList(ch.ev,14)}`;
+  h+=`<div class="rowbtns">${followBtn('c',ch.id,shortName(ch))}${ch.dyn>=0?followBtn('d',ch.dyn,'the house'):''}</div>`;
   return h;
 }
 function familyTree(ch){
@@ -238,6 +298,7 @@ function viewSite(s){
     h+=`</table>`;
   }
   h+=`<h4 class="sub">Annals</h4>${evList(s.ev,14)}`;
+  h+=`<div class="rowbtns">${followBtn('s',s.id,s.name)}</div>`;
   h+=`<div class="rowbtns"><button class="btn sm" onclick="centreOn(${s.tile});VIEWDIRTY=true">show on map</button></div>`;
   return h;
 }
@@ -284,7 +345,8 @@ function viewPolity(p){
     h+=`<h4 class="sub">Regard for neighbours</h4><table class="t">`;
     for(const [q,v] of rels.slice(0,10)){
       const e=p.rel.get(q.id);
-      const why=e&&e.m.length? e.m[e.m.length-1].t : '';
+      let why='';
+      if(e&&e.m.length){ let bw=-1; for(const m of e.m){ const a=Math.abs(m.v); if(a>bw){bw=a;why=m.t;} } }
       h+=`<tr><td>${PL(q)}</td><td class="num" style="color:${v<0?'var(--blood)':'var(--leaf)'}">${v>0?'+':''}${v}</td><td class="muted">${esc(why)}</td></tr>`;
     }
     h+=`</table>`;
@@ -296,6 +358,7 @@ function viewPolity(p){
   }
   h+=`</table>`;
   h+=`<h4 class="sub">Annals</h4>${evList(p.history,16)}`;
+  h+=`<div class="rowbtns">${followBtn('p',p.id,p.name)}</div>`;
   return h;
 }
 function vassalTree(p,pre,depth){
@@ -331,6 +394,7 @@ function viewDyn(d){
   for(const c of living.slice(0,26))
     h+=`<tr><td>${CHL(c)}</td><td class="num">${ageOf(c,YEAR)}</td><td class="muted">${c.titles.length?esc(P(c.titles[0])?P(c.titles[0]).name:''):(c.bastard?'baseborn':'')}</td></tr>`;
   h+=`</table>`;
+  h+=`<div class="rowbtns">${followBtn('d',d.id,'House '+d.name)}</div>`;
   const notable=d.members.map(C).filter(c=>c&&(c.epi||c.titles.length||c.arts.length)).slice(-24).reverse();
   h+=`<h4 class="sub">Of note</h4><table class="t"><tr><th>name</th><th>born–died</th><th>end</th></tr>`;
   for(const c of notable)
@@ -693,7 +757,9 @@ function frame(ts){
       }
     }
   }
-  if((VIEWDIRTY||MAPDIRTY)&&ts-lastRender>55){
+  /* redraw less often while centuries are flying past; snappily when idle */
+  const gap=(RUNNING||YEAR<TARGET)? 105 : 34;
+  if((VIEWDIRTY||MAPDIRTY)&&ts-lastRender>gap){
     drawMap(); MAPDIRTY=false; lastRender=ts;
   }
 }
@@ -719,8 +785,12 @@ function stepGen(){
         worldBirth(GENSEED);
         GEN=null; GENDONE=true;
         $('gennote').style.display='none';
-        CAMX=wrapx((SITES.length? SITES[0].tile%W : W/2)-Math.floor(viewCols()/2));
-        CAMY=clamp((SITES.length? (SITES[0].tile/W|0) : H/2)-Math.floor(viewRows()/2),0,H);
+        /* open on the busiest quarter of the world, framed */
+        setZoom(2);
+        let bx=0,by=0,n=0;
+        for(const s of SITES){ if(!s.alive) continue; bx+=s.tile%W; by+=(s.tile/W|0); n++; }
+        const ct = n? wrapx(Math.round(bx/n))+clamp(Math.round(by/n),0,H-1)*W : (W/2|0)+(H/2|0)*W;
+        centreOn(ct);
         VIEWDIRTY=true; MAPDIRTY=true;
         updateClock(); renderChronicle(); renderLegend();
       },20);
@@ -738,6 +808,15 @@ function boot(){
   renderInit();
   resizeMap();
   window.addEventListener('resize',()=>{ resizeMap(); });
+  /* the legend grows and shrinks with the map mode; the canvas must follow it */
+  if(window.ResizeObserver){
+    let last=0;
+    new ResizeObserver(()=>{
+      const wrap=$('mapwrap');
+      const k=wrap.clientWidth*10000+wrap.clientHeight;
+      if(k!==last){ last=k; resizeMap(); }
+    }).observe($('mapwrap'));
+  }
   /* map modes */
   $('modebar').innerHTML=MAPMODES.map(m=>`<button class="mode ${m.k===MODE?'on':''}" data-m="${m.k}">${m.n}</button>`).join('');
   $('modebar').addEventListener('click',e=>{
@@ -754,7 +833,11 @@ function boot(){
     if(a){ inspect(a.dataset.t,a.dataset.i); e.preventDefault(); return; }
     const sv=e.target.closest('[data-sev]');
     if(sv){ FILTER.sev=+sv.dataset.sev; FILTER.ent=null; renderChronicle(); return; }
-    if(e.target.id==='clrent'){ FILTER.ent=null; renderChronicle(); return; }
+    if(e.target.id==='clrent'){ FILTER.ent=null; FILTER.entName=''; renderChronicle(); return; }
+    if(e.target.id==='introhide'){ INTRODONE=true; renderChronicle(); return; }
+    if(e.target.id==='introhelp'){ showHelp(); return; }
+    const fl=e.target.closest('[data-follow]');
+    if(fl){ followEntity(fl.dataset.follow, +fl.dataset.fid); return; }
   });
   /* controls */
   $('btnGen').onclick=()=>{ const s=hashStr($('seed').value||'world',0); startGen(s|0); };
@@ -819,6 +902,7 @@ function boot(){
     if(e.key==='ArrowDown') { CAMY+=3; VIEWDIRTY=true; }
     if(e.key==='+'||e.key==='=') setZoom(ZOOM+1);
     if(e.key==='-') setZoom(ZOOM-1);
+    if(e.key==='l'||e.key==='L'){ SHOWLABELS=!SHOWLABELS; VIEWDIRTY=true; }
     if(e.key>='1'&&e.key<='9'){ const m=MAPMODES[+e.key-1]; if(m){ MODE=m.k;
       document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('on',x.dataset.m===MODE));
       VIEWDIRTY=true; renderLegend(); } }

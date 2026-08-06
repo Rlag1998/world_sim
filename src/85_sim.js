@@ -4,6 +4,7 @@
    system together.
    ========================================================================== */
 
+let WORLDGLOSS='';
 let YEAR=0, MONTH=0, SEEDV=0, CLIMATE_ANOM=0, GREATWINTER=0, EVENTS=[], EVCAP=42000, EVSEQ=0;
 let STAT={pop:0,pols:0,chars:0,wars:0,sites:0};
 const SERIES={pop:[],wars:[],magic:[],temp:[],pol:[],tech:[]};
@@ -52,6 +53,14 @@ function worldBirth(seed){
 
   elderLore(seed);
   siteGridBuild();
+  /* the world gets a name in the oldest tongue that still has speakers */
+  {
+    const lw=LANGS[0];
+    const nm=lw.unique([pick(r,['earth','land','realm','sky','deep','stone']),
+                        pick(r,['great','old','first','fair','wide','far'])],{});
+    WORLDNAME = nm.t;
+    WORLDGLOSS = nm.g;
+  }
 
   /* ---- where do peoples begin? at the best land, one hearth at a time --- */
   const nCult=ri(r,10,15);
@@ -152,7 +161,7 @@ function worldBirth(seed){
   for(const c of CULTURES){ c.techs.add('fire_hard'); c.techs.add('pottery'); if(chance(r,0.6)) c.techs.add('ard'); }
 
   chron(0,5,'genesis',
-    `The reckoning of years begins. ${plural(CULTURES.length,'people')} keep fire in ${plural(SITES.length,'holdfast')} `+
+    `<b>${esc(WORLDNAME)}</b> — “${esc(WORLDGLOSS)}”. The reckoning of years begins. ${plural(CULTURES.length,'people')} keep fire in ${plural(SITES.length,'holdfast')} `+
     `across a world already old: ${plural(RUINS.length,'ruin')} stand from before the counting, and the power in the deep places `+
     `is measured at ${Math.round(MAGIC*100)} parts in a hundred.`,{});
   for(const ct of CATACLYSMS)
@@ -263,6 +272,27 @@ function tickYear(){
     p.treasury += inc - p.levyPool*0.004 - p.sites.length*0.25;
     p.treasury = clamp(p.treasury,-600, 1200 + p.sites.length*1100 + polityPop(p)*0.02);
     p.legit = clamp(p.legit + (p.treasury>0?0.004:-0.008) - p.warExhaust*0.004,0.03,1);
+    /* one head, one crown: realms that fall to the same ruler come under the
+       greatest of them rather than drifting on as separate kingdoms */
+    if((p.id+Y)%5===0&&p.liege<0){
+      const rl=C(p.ruler);
+      if(rl&&rl.titles.length>1){
+        const mine=rl.titles.map(P).filter(q=>q&&q.alive&&q.ruler===rl.id&&q.liege<0);
+        if(mine.length>1){
+          mine.sort((a,b)=>polityPop(b)-polityPop(a));
+          const head=mine[0];
+          for(let k=1;k<mine.length;k++){
+            if(mine[k]===head) continue;
+            mine[k].liege=head.id;
+            if(head.vassals.indexOf(mine[k].id)<0) head.vassals.push(mine[k].id);
+            if(k===1) chron(Y,4,'union',
+              `${CHL(rl)} wears more than one crown; ${listify(mine.slice(1,4).map(q=>PL(q)))} `+
+              `${mine.length>2?'are':'is'} joined to ${PL(head)} in a personal union.`,
+              {chars:[rl.id],pols:mine.map(q=>q.id)});
+          }
+        }
+      }
+    }
     if((p.id+Y)%3===0) factionCheck(p,Y,r);
     if((p.id+Y)%2===0) considerWar(p,Y,r);
     /* unrest where the lord is foreign or the land is wasted */
@@ -327,8 +357,8 @@ function charactersTick(Y,r){
   const dead=[];
   /* Houses that hold no land dwindle: their sons go for soldiers and are not
      written down. This is what keeps the cast of the chronicle finite. */
-  const crowd = LIVING.size>3800? Math.max(0.35,3800/LIVING.size) : 1;
-  const press = LIVING.size>4200? clamp(LIVING.size/4200-1,0,1.6) : 0;
+  const crowd = LIVING.size>5200? Math.max(0.35,5200/LIVING.size) : 1;
+  const press = LIVING.size>6000? clamp(LIVING.size/6000-1,0,1.6) : 0;
   for(const id of LIVING){
     const ch=CHARS[id];
     if(!ch||ch.died>=0) continue;
@@ -347,14 +377,14 @@ function charactersTick(Y,r){
     /* the yearly business of a life, sharded so it stays cheap */
     if((ch.id+Y)%3!==0) continue;
     if(age>=14){
-      if(!ch.married&&chance(r,0.30)) seekMarriage(ch,Y,r);
+      if(!ch.married&&chance(r,0.55)) seekMarriage(ch,Y,r);
       else if(ch.married&&ch.sex==='f'&&age<sp.life*0.55){
         const mate=C(ch.sp);
         const seat = ch.site>=0? SITES[ch.site] : (mate&&mate.site>=0? SITES[mate.site] : null);
         const hd = seat? C(seat.holder) : null;
         const landed = !!(ch.titles.length || (mate&&mate.titles.length) ||
                           (hd&&(hd.id===ch.id||hd.id===ch.sp||hd.dyn===ch.dyn||(mate&&hd.dyn===mate.dyn))));
-        const pr = 0.30*sp.fert*(1+traitSum(ch,'fert'))*(landed?1:0.55)*crowd;
+        const pr = 0.30*sp.fert*(1+traitSum(ch,'fert'))*(landed?1:0.80)*crowd;
         if(chance(r,pr)){
           const fa=C(ch.sp);
           if(fa&&alive(fa)) birth(ch,fa,Y,r,false);
@@ -439,7 +469,9 @@ function seekMarriage(ch,Y,r){
   const age=Y-ch.born;
   const myPol=ch.titles.length? P(ch.titles[0]) : (ch.court>=0&&SITES[ch.court]? P(SITES[ch.court].polity):null);
   const home=ch.site>=0? SITES[ch.site].tile : (myPol? myPol.capitalTile : 0);
-  const near=nearbySites(home,30);
+  /* thin markets send lords looking further afield, as they did */
+  let near=nearbySites(home,46);
+  if(near.length<6) near=nearbySites(home,90);
   let pool=[];
   for(const s of near){
     const p=P(s.polity); if(!p||!p.alive) continue;

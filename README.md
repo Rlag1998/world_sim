@@ -120,35 +120,73 @@ and some events are held not to have happened at all.
 
 ---
 
-## Reading it
+## The map
+
+It is drawn as cartography, not as a dump of the tile array. A monospaced glyph
+field carries texture — conifer, broadleaf, dune, marsh, scree, peak — and over it
+go the things a map actually needs:
+
+- **Inked coastlines.** Every land/sea edge is stroked, so continents read as
+  continents. The sea is banded by distance from shore: shelf, sea, abyss.
+- **Rivers as real lines**, following the D8 flow field and thickening where the
+  discharge does, so you can see a watershed gather.
+- **Borders where rule changes**, stroked along the actual frontier — a pale line
+  between realms, a darker one between a liege and its vassal marches.
+- **Hillshading** from the north-west, so a mountain range looks like a range.
+- **Town marks by rank**, capitals ringed, besieged towns ringed in red, with
+  labels that refuse to overlap each other.
+- **Map furniture**: a title cartouche naming the world in its own oldest tongue,
+  a compass, and a scale bar in kilometres.
+- **The inspector and the map agree.** Open a realm and its whole territory —
+  vassals included — is outlined in gold on the map. Open a town, a ruin or a
+  person and the map puts crosshairs on them.
 
 | | |
 |---|---|
 | drag / arrow keys | pan |
-| wheel, `+` / `-` | zoom (4 levels) |
+| wheel, `+` / `-` | zoom (five levels) |
 | `1` … `9` | map modes |
+| `L` | labels on/off |
 | space | run / pause |
 | click a tile | inspect it |
 | click any coloured name | follow it — anywhere |
 
-Fourteen map modes: **LAND** (biomes and rivers), **REALMS** (borders drawn bright
-at frontiers), **PEOPLES**, **GODS**, **FOLK**, **TRADE** (roads), **UNREST**,
-**WAR**, **POWER** (leylines), **CLIMATE**, **RAINS**, **RICHES**, **RELIEF**,
-**LEGENDS** (ruins and Elder Age scars only).
+Fourteen map modes: **LAND**, **REALMS**, **PEOPLES**, **GODS**, **FOLK**,
+**TRADE**, **UNREST**, **WAR**, **POWER**, **CLIMATE**, **RAINS**, **RICHES**,
+**RELIEF**, **LEGENDS**. The thematic maps drop the biome colours for a neutral
+relief-shaded ground, so a realm's colour means the same thing over a forest as
+over a desert. Realm colours are assigned by greedy graph colouring, so no two
+neighbours ever share one.
 
-Everything is clickable and everything cross-links: a battle → its war → the
-commander → his house → its sigil and motto → his grudges → the man who killed his
-father → that man's seat → its market prices.
+## Reading the chronicle
+
+Events are grouped under year headings and marked by kind — ⚔ war, ☠ ruin,
+♔ crown, ✝ faith, ✦ the old power, ⌂ the ordinary business of towns — and graded
+by weight, so the shape of a century is visible before a word of it is read. The
+filter runs from ALL to GREAT DEEDS.
+
+Everything cross-links: a battle → its war → the commander → his house → its sigil
+and motto → his grudges → the man who killed his father → that man's seat → its
+market prices. Any house, realm, town or person can be **followed**, which filters
+the chronicle down to their thread alone.
 
 ---
 
 ## Performance
 
-The map is a monospaced glyph grid painted to a canvas through a tinted glyph atlas,
-so forty-four thousand cells repaint without the browser sulking. World generation
-takes about 2.5 seconds. Simulation runs roughly 3 ms/year early and 50 ms/year by
-year 1200, time-sliced against `requestAnimationFrame` so long jumps never freeze
-the tab. A 1200-year history costs about 27 seconds and 120 MB.
+World generation takes well under a second in a browser. Simulation runs about
+2–3 ms/year early and 25 ms/year by year 1200, time-sliced against
+`requestAnimationFrame` so a `+500y` jump never freezes the tab. A 1200-year
+history costs roughly 15–20 seconds and 90–105 MB.
+
+Rendering is 4–40 ms a frame depending on zoom, and is throttled and dirty-flagged.
+The glyph atlas is baked once per zoom level into sixteen fixed inks — the cell's
+fill carries the information, the glyph only carries texture — and at world scale
+the colour layer is blitted as one image rather than fifty thousand rectangles.
+
+The size of the named cast varies genuinely by world: a dense, consolidated world
+carries around 3,000 living nobles, a sparse and fractured one around 700. Both
+have a lord in every town with a family, a lineage and a grudge list.
 
 ---
 
