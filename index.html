@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rimtale — a colony chronicle that writes itself</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏕️</text></svg>">
+</head>
+<body>
+<div id="topbar">
+  <div class="top-left">
+    <span id="colony-name" class="colony">—</span>
+    <span id="season-chip" class="chip"></span>
+    <span id="date" class="chip subtle"></span>
+    <span id="weather" class="chip subtle"></span>
+  </div>
+  <div class="top-mid">
+    <span id="threat-chip" class="chip danger" style="display:none">⚔️ UNDER ATTACK</span>
+  </div>
+  <div class="top-right">
+    <span id="pop" class="chip subtle"></span>
+    <span id="wealth" class="chip subtle"></span>
+    <span id="storyteller-chip" class="chip subtle"></span>
+    <span class="controls">
+      <button id="btn-pause" class="speed-btn" title="Pause (space)">⏸</button>
+      <button class="speed-btn" data-speed="1" title="Normal speed (1)">▶</button>
+      <button class="speed-btn" data-speed="2" title="Fast (2)">▶▶</button>
+      <button class="speed-btn" data-speed="3" title="Very fast (3)">▶▶▶</button>
+      <button id="btn-auto" class="speed-btn wide" title="Let the director pace the story">AUTO</button>
+      <button id="btn-new" class="speed-btn wide" title="Abandon and start a new chronicle">⟳ New</button>
+    </span>
+  </div>
+</div>
+
+<div id="layout">
+  <aside id="chronicle-panel">
+    <div class="panel-head">
+      <span>The Chronicle</span>
+      <button id="chron-filter" class="mini-btn" title="Show only major events">major</button>
+    </div>
+    <div id="chronicle-list"></div>
+  </aside>
+
+  <main id="stage">
+    <canvas id="game"></canvas>
+    <div id="alerts"></div>
+    <div id="memorial">
+      <div id="memorial-body"></div>
+    </div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-head"><span>Colonists</span><span class="hint">click to inspect · dbl-click to follow</span></div>
+    <div id="roster"></div>
+    <div id="detail-wrap" style="display:none">
+      <div class="panel-head"><span>Details</span><button id="detail-close" class="mini-btn">✕</button></div>
+      <div id="detail"></div>
+    </div>
+  </aside>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/names.js"></script>
+<script src="js/defs.js"></script>
+<script src="js/map.js"></script>
+<script src="js/things.js"></script>
+<script src="js/pawn.js"></script>
+<script src="js/social.js"></script>
+<script src="js/jobs.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/overseer.js"></script>
+<script src="js/events.js"></script>
+<script src="js/storyteller.js"></script>
+<script src="js/narrator.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

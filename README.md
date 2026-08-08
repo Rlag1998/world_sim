@@ -1,218 +1,115 @@
-# The Chronicle Engine
+# Rimtale — a colony chronicle that writes itself
 
-A text-rendered, fully simulated procedural fantasy world in a single self-contained
-HTML file. Open `world_sim.html` in a browser. No build step, no dependencies, no
-network access.
+A RimWorld-style colony simulation you **watch, not play**. Three survivors crash on a
+rim world; an invisible overseer plans their base, a storyteller AI paces their
+disasters and mercies, and a narrator writes it all down as it happens — in prose,
+with chapters. No two chronicles are alike, and no input is ever required. It is a
+story generator with a map attached.
 
-Type a seed, press **FORGE WORLD**, then **RUN**. The same seed always produces the
-same world, down to the last bastard.
+![The colony at work](docs/screenshot-village.png)
 
----
+## Run it
 
-## What it actually simulates
+Open `index.html` in any modern browser. That's the whole install — zero
+dependencies, no build step, no server. The chronicle autosaves to your browser
+and resumes when you return. When a colony falls (they do), a memorial rolls and
+a new chronicle begins on a fresh world.
 
-Nothing in this world is hand-authored. There are no named kingdoms in the source,
-no plot scripts, and no sentence templates hiding a story. There are small phoneme
-tables, a list of semantic concepts, and about forty numeric constants. Everything
-else is derived.
+The only controls are spectator controls: pan/zoom the camera, click a colonist to
+read their story, double-click to follow them, and speed buttons — including
+**AUTO**, where a director camera chases the drama, slows down for weddings and
+raids, and fast-forwards quiet nights.
 
-**The rock.** 11–17 tectonic plates with drift vectors are laid down over a wrapping
-280×160 grid. Convergent boundaries between two continental plates raise Himalayan
-ranges; oceanic subduction raises volcanic arcs and coastal cordillera; divergent
-boundaries open rifts. Mantle plumes paint island chains along their drift. Sea
-level is then chosen to give the land fraction we asked for.
+## What the simulation actually simulates
 
-**The sky.** Winds come from a three-cell circulation model (trades, westerlies,
-polar easterlies) blended across the boundaries. Rainfall is computed by marching
-42 steps *upwind* from every tile, gathering evaporation over water and losing it
-to orographic lift over rising ground — which is what produces real rain shadows
-behind mountain ranges. Temperature falls with latitude and altitude and swings
-harder inland. The grid uses an equal-area projection so the poles don't eat a
-fifth of the world.
+**People.** Every pawn has a childhood and adulthood backstory, 2–3 of ~30 traits
+(pyromaniac, iron-willed, hopeless romantic, bloodlust…), ten skills with burning
+passions, needs (food, rest, recreation), and a mood assembled from dozens of
+timed thoughts. Low mood causes mental breaks — sad wanders, food binges,
+tantrums, berserk rages, fire-starting sprees, or walking off the map entirely
+(sometimes they come back, years later).
 
-**The water.** Depressions are filled with a priority-flood, flow is routed D8
-downhill, and discharge is accumulated in descending-elevation order. Two rounds of
-stream-power erosion cut the highlands and are then re-drained. Rivers are whatever
-carries the wettest 4% of the drainage; lakes are the basins that never reached the
-sea; salt flats are the endorheic ones in deserts.
+**Bodies.** Body-part damage, bleeding and clotting, pain that downs fighters
+before it kills them, infections, the plague-vs-immunity race, lost limbs and the
+scars that name people, rescue, bed rest, tending with herbal medicine or
+proper medkits — and old age, which comes for everyone.
 
-**The ground.** Biomes are Whittaker classification from real temperature and real
-rainfall, with altitude and wetland overrides. Soil fertility comes from biome,
-slope, floodplain accumulation, volcanic ash and growing-season length. Ore is
-placed where the geology allows it: metals in orogenic belts, coal in old swamps,
-salt on dry coasts and in evaporite basins, amber on cold northern shores, horses
-on steppe, starmetal where something fell out of the sky.
+**Society.** Opinions, friendships, rivalries, insults that become fistfights,
+courtship, weddings the whole colony attends, affairs and their discoveries,
+divorces, pregnancies, children who grow up and take a share of the work,
+funerals with eulogies, grave visits on death anniversaries, fireside tales,
+harvest festivals and Founding Day feasts.
 
-**The Elder Age.** Before year zero, primordial Powers seat themselves on the
-strongest leylines and break the world: a Sundering that splits a mountain range, a
-Drowning that takes a coast, a Long Cold, a Glassing. These edits happen *before*
-climate and hydrology run, so the scars change where the rain falls forever after.
-Their ruins are scattered across the map with things buried in them.
+**A colony.** The overseer AI plans and builds the base room by room — cabin,
+kitchen, private bedrooms, workshop, hospital, prison, brewery — reactively:
+walls go up after the first raid, the graveyard appears after the first death, a
+crib is queued when a baby is coming. Farms are laid on real soil; crops grow,
+freeze, and blight; meals get cooked, food spoils, hunters hunt, miners breach
+ore veins, researchers climb a small tech tree, and the sculptor carves what the
+colony remembers: *"a carved column remembering the day the palisade was completed."*
 
-**Tongues.** Three or four proto-languages are invented from sampled phoneme
-inventories with typological constraints, then given a root lexicon over ~160
-concepts. As peoples divide, daughter tongues inherit those roots and apply chains
-of regular sound laws — Grimm's shift, lenition, rhotacism, apocope, palatalisation,
-nasal loss — so related languages have visibly cognate words. Open any tongue in the
-inspector to see its lexicon beside its parent's, and the laws that separated them.
+**A hostile world.** Raids from named pirate and tribal factions that scale with
+your wealth — with persistent antagonist leaders who escape, swear vendettas, and
+return; manhunter packs; hungry predators; cold snaps, heat waves, lightning
+storms and the fires they start; eclipses and auroras; disease outbreaks; trade
+caravans, drop-pod castaways, wanderers, self-taming pets that adopt the colony —
+and, sealed somewhere in the mountain, an ancient vault the miners will
+eventually get curious about.
 
-**Names mean things.** Every place-name is composed from what is actually on its
-tile: a river-mouth fort in a pine wood held by a people whose word for pine is
-*lötö* becomes **Lötöngi**, and the engine will tell you it means "wood haven".
-Personal names are dithematic compounds. Epithets are earned from deeds.
+**A storyteller.** One of three personas (Cassia the Chronicler, The Whisper,
+Old Coyote) decides what happens when, balancing threat against mercy: breathing
+room after battles, aid when the colony reels, spice when it gets comfortable —
+and one legendary intervention reserved for the darkest possible hour.
 
-**Peoples.** Species are rolled, not chosen — lifespan, fecundity, magical affinity,
-stature, temperament, biome preference. The roll space can produce elf-like,
-dwarf-like and human-like kindreds, and it names them in their own language. Culture
-is a twelve-value vector (honour, piety, martialism, xenophobia, literacy, cruelty…)
-that drifts every decade and *diverges* when a population is cut off by distance or
-foreign rule — at which point a new culture and a new daughter language are born,
-and the chronicle says so.
+![A colonist's story](docs/screenshot-detail.png)
 
-**Gods.** Pantheons are generated from what the founding landscape actually cared
-about: a coastal people gets a sea god, a famine-scarred one gets a grain god, a
-people beside a volcano gets a god of the forge. Holy sites are placed on genuine
-geographic anomalies. Faiths schism when congregations drift apart, and every heresy
-disagrees about something specific.
+## The chronicle
 
-**Bread and silver.** Each settlement produces sixteen goods from the tiles it
-actually holds and the classes it actually contains. Prices move with local stocks.
-Caravans on the settlement graph chase real margins net of transport cost, bulk and
-banditry risk. Roads accrete where traffic already went, which lowers cost, which
-attracts more traffic. Famine happens when grain stocks reach zero. Technology is a
-44-node prerequisite graph that spreads by trade contact and is *lost* when literate
-populations collapse — taking everything downstream of it with it.
+The left panel is the point of the game: a narrator turns every event into prose,
+opens chapters at turning points (*"Chapter 3: Burning Promise"*), writes season
+and year summaries, composes epitaphs and eulogies, remembers anniversaries, and
+keeps a memory bank of notable moments that feeds sculpture descriptions and
+callbacks. Colonists accumulate a personal life story you can read when you
+click them.
 
-**The blood.** Every hold of any size has a lord. Characters have skills, a
-correlated trait pool, inherited and mutated from their parents; opinions of each
-other that always carry the reason attached; claims; grudges that outlive them and
-are inherited by their children. Marriage is an alliance market weighted by realm
-size, prestige, faith, culture gap and consanguinity taboo. Succession follows the
-culture's law — and partible inheritance really does shatter realms among four sons.
-Plots are murder, seizure, forged claims and usurpation, resolved by skill checks
-with co-conspirators recruited from people who share the grievance.
+## Under the hood
 
-Occasionally, a wedding between two houses with a blood debt between them ends
-badly.
-
-**The sword.** Wars are declared for reasons the world produced: pressed claims,
-lost cores, kin under a foreign yoke, holy sites in unbelieving hands, blocked trade
-routes, avenged grudges — or plain arithmetic about who is weaker. Levies deplete a
-real manpower pool. Armies march the road network, starve in hostile terrain in
-winter, and desert. Every host that meets on one field fights one battle, resolved
-from numbers, quality, terrain, weather and the commander's own martial skill and
-temperament — and named lords die in it. Sieges have walls, stores, assault-versus-
-starve-out, and sack. Peace transfers real territory and plants the next war's
-grievance.
-
-**Deep time.** Magic is a mappable field over the tiles, generated from tectonics
-and Elder Age scars, and it is *leaving the world* — about 84% of it is gone by year
-1200. The elder kindreds fade with it. Artifacts are forged with a real provenance
-chain: who made it, of what, where, and every hand it passed through, including the
-four hundred years it spent in the ground before a named looter dug it up. Some of
-them corrupt their bearers. Prophecies are generated from the simulation's own
-predicted state, made deliberately obscure, and then actually checked — fulfilled,
-or outliving their deadline and quietly reinterpreted.
-
-**Legend drift.** The chronicle stores what happened. The **WORLD** panel also shows
-what people now *say* happened: numbers inflate in the telling, giants are added,
-and some events are held not to have happened at all.
-
----
-
-## The map
-
-It is drawn as cartography, not as a dump of the tile array. A monospaced glyph
-field carries texture — conifer, broadleaf, dune, marsh, scree, peak — and over it
-go the things a map actually needs:
-
-- **Inked coastlines.** Every land/sea edge is stroked, so continents read as
-  continents. The sea is banded by distance from shore: shelf, sea, abyss.
-- **Rivers as real lines**, following the D8 flow field and thickening where the
-  discharge does, so you can see a watershed gather.
-- **Borders where rule changes**, stroked along the actual frontier — a pale line
-  between realms, a darker one between a liege and its vassal marches.
-- **Hillshading** from the north-west, so a mountain range looks like a range.
-- **Town marks by rank**, capitals ringed, besieged towns ringed in red, with
-  labels that refuse to overlap each other.
-- **Map furniture**: a title cartouche naming the world in its own oldest tongue,
-  a compass, and a scale bar in kilometres.
-- **The inspector and the map agree.** Open a realm and its whole territory —
-  vassals included — is outlined in gold on the map. Open a town, a ruin or a
-  person and the map puts crosshairs on them.
-
-| | |
-|---|---|
-| drag / arrow keys | pan |
-| wheel, `+` / `-` | zoom (five levels) |
-| `1` … `9` | map modes |
-| `L` | labels on/off |
-| space | run / pause |
-| click a tile | inspect it |
-| click any coloured name | follow it — anywhere |
-
-Fourteen map modes: **LAND**, **REALMS**, **PEOPLES**, **GODS**, **FOLK**,
-**TRADE**, **UNREST**, **WAR**, **POWER**, **CLIMATE**, **RAINS**, **RICHES**,
-**RELIEF**, **LEGENDS**. The thematic maps drop the biome colours for a neutral
-relief-shaded ground, so a realm's colour means the same thing over a forest as
-over a desert. Realm colours are assigned by greedy graph colouring, so no two
-neighbours ever share one.
-
-## Reading the chronicle
-
-Events are grouped under year headings and marked by kind — ⚔ war, ☠ ruin,
-♔ crown, ✝ faith, ✦ the old power, ⌂ the ordinary business of towns — and graded
-by weight, so the shape of a century is visible before a word of it is read. The
-filter runs from ALL to GREAT DEEDS.
-
-Everything cross-links: a battle → its war → the commander → his house → its sigil
-and motto → his grudges → the man who killed his father → that man's seat → its
-market prices. Any house, realm, town or person can be **followed**, which filters
-the chronicle down to their thread alone.
-
----
-
-## Performance
-
-World generation takes well under a second in a browser. Simulation runs about
-2–3 ms/year early and 25 ms/year by year 1200, time-sliced against
-`requestAnimationFrame` so a `+500y` jump never freezes the tab. A 1200-year
-history costs roughly 15–20 seconds and 90–105 MB.
-
-Rendering is 4–40 ms a frame depending on zoom, and is throttled and dirty-flagged.
-The glyph atlas is baked once per zoom level into sixteen fixed inks — the cell's
-fill carries the information, the glyph only carries texture — and at world scale
-the colour layer is blitted as one image rather than fifty thousand rectangles.
-
-The size of the named cast varies genuinely by world: a dense, consolidated world
-carries around 3,000 living nobles, a sparse and fractured one around 700. Both
-have a lord in every town with a family, a lineage and a grudge list.
-
----
-
-## Layout
-
-`world_sim.html` is the deliverable and is fully self-contained. It is generated by
-concatenating the annotated sources:
+Plain JavaScript, canvas rendering, ~7,000 lines, no dependencies. The
+simulation is deterministic per seed and fully decoupled from rendering, so it
+also runs headless:
 
 ```
-src/00_head.html   markup and styling
-src/10_core.js     PRNG streams, cylindrical noise, heaps, palettes
-src/20_worldgen.js tectonics, climate, hydrology, biomes, ores, travel costs
-src/30_lang.js     phonologies, sound laws, compositional naming
-src/40_peoples.js  species, cultures, pantheons
-src/50_econ.js     settlements, goods, prices, trade, roads, technology
-src/60_char.js     characters, traits, dynasties, opinion, heraldry
-src/65_polity.js   realms, vassalage, succession law, factions, plots
-src/70_war.js      diplomacy, casus belli, armies, battles, sieges, peace
-src/80_myth.js     Elder Age, leylines, artifacts, prophecy, ruins, legend drift
-src/85_sim.js      chronicle, world birth, the year tick
-src/90_render.js   glyph atlas, map modes, minimap
-src/95_ui.js       inspectors, chronicle, controls, scheduler
+node tools/headless.js --days 120 --seed 12345 --chronicle
 ```
 
-Rebuild with `./build.sh`.
+prints season-by-season stats and the entire generated chronicle to your
+terminal, then verifies a save/load round trip. This is how the game was
+balance-tested across many multi-year colony runs.
 
-`test/node.js`, `test/story.js` and `test/prof.js` run the simulation core headless
-in Node for profiling and narrative inspection; `test/run.js` and `test/shot.js`
-drive the real page in headless Chromium.
+| File | What it is |
+| --- | --- |
+| `js/defs.js` | All game data: traits, thoughts, plants, animals, weapons, buildings, tech, balance table |
+| `js/map.js` | Terrain generation, A* pathfinding, room & region detection |
+| `js/pawn.js` | People and animals: needs, mood, skills, body-part health, aging |
+| `js/jobs.js` | The work AI: how a pawn decides what to do with every minute |
+| `js/overseer.js` | The invisible base-planner: rooms, farms, bills, roles, defense |
+| `js/combat.js` | Raids, defense mobilization, hunting, animal behavior |
+| `js/social.js` | Opinions, romance, fights, gatherings, births |
+| `js/events.js` | Everything the storyteller can throw at the colony |
+| `js/storyteller.js` | Pacing, mercy rules, and the three persona directors |
+| `js/narrator.js` | The chronicle: prose templates, chapters, summaries, epitaphs |
+| `js/sim.js` | World creation, the master tick, weather, fire, save/load |
+| `js/render.js` | Canvas renderer and the cinematic director camera |
+| `tools/headless.js` | Run years of colony life in seconds, in the terminal |
+
+Screenshot capture for this README lives in `tools/` territory too: any
+Playwright install can drive the page (see `tools/headless.js` for the sim-only
+path, which needs nothing at all).
+
+## Tuning
+
+Almost every knob lives in `BAL` (in `js/defs.js`): day length, hunger rates,
+break thresholds, raid scaling, population caps. The pacing is deliberately
+RimWorld-honest: colonies usually live a few dramatic years, some make it to a
+generational village, and the ones that fall get a memorial and a successor
+world. The chronicle is the survivor.

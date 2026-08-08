@@ -1,0 +1,247 @@
+/* Rimtale — spectator chrome. Dark frame around a living map;
+   the chronicle panel reads like a book. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #14161c;
+  --panel: #1c1f27;
+  --panel2: #22262f;
+  --line: #2e333e;
+  --ink: #d6d2c4;
+  --ink-dim: #8d8a7f;
+  --accent: #c9a961;
+  --good: #7fbf6a;
+  --bad: #e0684f;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- top bar ---- */
+#topbar {
+  height: 46px;
+  flex: 0 0 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.top-left, .top-right, .top-mid { display: flex; align-items: center; gap: 8px; }
+.colony {
+  font-family: Georgia, serif;
+  font-size: 19px;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  margin-right: 4px;
+}
+.chip {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.chip.subtle { color: var(--ink-dim); }
+.chip.danger { background: #571f18; border-color: #8d3325; color: #ffb3a5; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: 0.55; } }
+.controls { display: flex; gap: 4px; margin-left: 8px; }
+.speed-btn {
+  background: var(--panel2);
+  color: var(--ink-dim);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-width: 30px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.speed-btn.wide { padding: 0 8px; }
+.speed-btn:hover { color: var(--ink); border-color: #4a5160; }
+.speed-btn.on { background: #3a4050; color: #fff; border-color: #566078; }
+
+/* ---- layout ---- */
+#layout { flex: 1; display: flex; min-height: 0; }
+aside {
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#chronicle-panel { width: 350px; border-right: 1px solid var(--line); }
+#right-panel { width: 292px; border-left: 1px solid var(--line); overflow-y: auto; }
+.panel-head {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--line);
+}
+.panel-head .hint { font-family: system-ui; font-size: 10px; color: var(--ink-dim); }
+.mini-btn {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  border-radius: 5px;
+  font-size: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.mini-btn.on { background: #3a4050; color: #fff; }
+
+/* ---- chronicle ---- */
+#chronicle-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px 24px;
+  font-family: Georgia, "Iowan Old Style", serif;
+  font-size: 13.5px;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3f4c transparent;
+}
+.chron-entry { margin: 0 0 10px; }
+.chron-date { font-size: 10.5px; color: var(--ink-dim); font-style: italic; margin-bottom: 1px; }
+.chron-text .ico { margin-right: 5px; }
+.chron-entry.good .chron-text { color: #cfdfc0; }
+.chron-entry.bad .chron-text { color: #e8c0b4; }
+.chron-entry.summary .chron-text {
+  color: #d8cfae;
+  background: rgba(201,169,97,0.07);
+  border-left: 2px solid var(--accent);
+  padding: 6px 9px;
+  display: block;
+  border-radius: 0 6px 6px 0;
+}
+.chron-entry.major .chron-text { font-size: 14px; }
+.chron-chapter {
+  margin: 20px 0 12px;
+  padding-top: 12px;
+  border-top: 1px double var(--line);
+  font-size: 17px;
+  color: var(--accent);
+  text-align: center;
+}
+.chron-chapter span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 2px;
+}
+
+/* ---- stage ---- */
+#stage { flex: 1; position: relative; min-width: 0; background: #101218; }
+#game { position: absolute; inset: 0; cursor: grab; }
+#game:active { cursor: grabbing; }
+#alerts {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  max-width: 70%;
+}
+.alert {
+  background: rgba(64,22,16,0.88);
+  border: 1px solid #8d3325;
+  color: #ffcabb;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---- roster ---- */
+#roster { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.pawn-card {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 7px;
+  cursor: pointer;
+}
+.pawn-card:hover { border-color: #4a5160; }
+.pawn-card.selected { border-color: var(--accent); }
+.pawn-card.downed { background: #33221e; }
+.pawn-card.prisoner { border-style: dashed; opacity: 0.85; }
+.portrait { width: 34px; height: 34px; border-radius: 6px; flex: 0 0 34px; }
+.pawn-info { flex: 1; min-width: 0; }
+.pawn-name { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pawn-task { font-size: 10.5px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mood-bar { height: 3px; background: #14161c; border-radius: 2px; margin-top: 3px; }
+.mood-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+/* ---- detail ---- */
+#detail { padding: 10px 12px 20px; font-size: 12px; }
+.d-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.d-head span { color: var(--ink-dim); font-size: 11px; }
+.d-back { color: var(--ink-dim); font-style: italic; margin-bottom: 6px; }
+.d-traits { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.d-traits .chip { font-size: 10.5px; padding: 2px 8px; }
+.d-sec { color: var(--ink); margin: 4px 0; }
+.d-sec-title {
+  margin: 10px 0 4px;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.thought { display: flex; justify-content: space-between; padding: 1px 0; }
+.thought .pos { color: var(--good); }
+.thought .neg { color: var(--bad); }
+.muted { color: var(--ink-dim); }
+.skills { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.skill { font-size: 11px; color: var(--ink-dim); }
+.skill b { color: var(--ink); }
+.story-line { font-size: 11.5px; padding: 1px 0; }
+
+/* ---- memorial ---- */
+#memorial {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8,9,12,0.88);
+  z-index: 30;
+}
+#memorial-body {
+  max-width: 520px;
+  text-align: center;
+  font-family: Georgia, serif;
+  padding: 30px;
+  border: 1px double var(--line);
+  background: var(--panel);
+  border-radius: 10px;
+}
+#memorial-body h1 { color: var(--accent); font-size: 26px; margin-bottom: 8px; font-weight: 500; }
+.mem-sub { color: var(--ink-dim); font-style: italic; margin: 8px 0; }
+.mem-list { text-align: left; margin: 14px auto; max-height: 260px; overflow-y: auto; }
+.mem-line { padding: 2px 0; color: var(--ink); }
+
+/* narrow screens: hide the roster, keep the story */
+@media (max-width: 980px) {
+  #right-panel { display: none; }
+  #chronicle-panel { width: 290px; }
+}
