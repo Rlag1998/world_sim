@@ -277,10 +277,15 @@ const Social = {
     for (const p of world.pawns) if (p.isColonist() && p !== mother && p !== father) p.addThought(world, 'newBabyColony');
     mother.addStory(world, `Gave birth to ${baby.name.first}`);
     baby.addStory(world, `Born at ${world.colonyName}`);
-    Chron.log(world, Chron.pick(world, [
+    let birthLine = Chron.pick(world, [
       `A child is born! ${mother.label()} ${father && !father.dead ? 'and ' + father.label() + ' ' : ''}named ${world.byId[baby.id].gender === 'm' ? 'him' : world.byId[baby.id].gender === 'f' ? 'her' : 'them'} ${baby.name.first}. The whole colony found reasons to walk past the crib today.`,
       `${baby.name.first} ${baby.name.last} came into the world squalling, red-faced, and instantly beloved. Population of ${world.colonyName}: ${world.pawns.filter(p => p.isColonist()).length}.`,
-    ]), { icon: ICONS.birth, tone: 'good', major: true, at: mother });
+    ]);
+    if (baby.heirloom) {
+      const src = world.byId[baby.heirloom.from];
+      if (src) birthLine += ` Already, everyone swears ${baby.he} has ${src.label()}'s ${TRAITS[baby.heirloom.t].n.toLowerCase()}.`;
+    }
+    Chron.log(world, birthLine, { icon: ICONS.birth, tone: 'good', major: true, at: mother });
     Chron.remember(world, { kind: 'birth', text: `${baby.name.first} was born to ${mother.label()}`, pawns: [baby.id, mother.id] });
     Chron.maybeChapter(world, 'birth', `A Child of ${world.colonyName}`);
     Renderer.focus(world, mother.x, mother.y, 5, `${baby.name.first} is born!`);

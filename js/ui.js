@@ -195,7 +195,7 @@ const UIx = {
     const rel = (id) => { const q = world.byId[id]; return q ? q.label() : '?'; };
     const age = p.ageYears(world);
     let html = `<div class="d-head"><b>${p.full()}</b><span>${age}, ${p.gender === 'm' ? 'he/him' : p.gender === 'f' ? 'she/her' : 'they/them'}</span></div>`;
-    html += `<div class="d-back">${p.childhood.n}${p.adulthood ? ' → ' + p.adulthood.n : ''}. ${U.cap(p.he)} ${p.childhood.d.replace('{colony}', world.colonyName)}${p.adulthood ? `; later ${p.he} ${p.adulthood.d}.` : '.'}</div>`;
+    html += `<div class="d-back">${p.childhood.n}${p.adulthood ? ' → ' + p.adulthood.n : ''}. ${U.cap(p.he)} ${p.childhood.d.replace('{colony}', world.colonyName)}${p.adulthood ? `; later ${p.he} ${p.adulthood.d.replace('{colony}', world.colonyName)}.` : '.'}</div>`;
     html += `<div class="d-traits">${p.traits.map(t => `<span class="chip" title="${TRAITS[t].d}">${TRAITS[t].n}</span>`).join('')}</div>`;
     html += `<div class="d-sec">Mood ${p.mood}/100 · Food ${Math.round(p.needs.food * 100)}% · Rest ${Math.round(p.needs.rest * 100)}%</div>`;
     // thoughts

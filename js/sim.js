@@ -474,8 +474,19 @@ const Sim = {
         if (after === BAL.workAt) {
           Chron.log(world, `${p.label()} is ${after} today — old enough to haul, harvest, and get underfoot in a useful way.`, { icon: '🎂', tone: 'good' });
         } else if (after === BAL.adultAt) {
-          Chron.log(world, `${p.label()} comes of age today. ${U.cap(p.he)} ${p.gender === 'nb' ? 'take' : 'takes'} a full share of the work — and of the watch.`, { icon: '🎂', tone: 'good', major: true });
+          // an adulthood earned, not rolled: shaped by how they actually grew up
+          const best = SKILLS.reduce((a, s) => p.skill(s) > p.skill(a) ? s : a, 'Plants');
+          const titles = {
+            Plants: 'Field-raised', Construction: 'Wall-born', Cooking: 'Hearth-raised',
+            Medicine: "Healer's shadow", Shooting: 'Watchtower kid', Melee: 'Scrapper',
+            Mining: 'Tunnel rat', Crafting: 'Workshop sprite', Social: 'Fire-circle voice', Intellectual: 'Chronicle-reader',
+          };
+          p.adulthood = { key: 'colonyraised', n: titles[best] || 'Colony-raised', d: `came of age at {colony}, raised on chores, chronicles and alarm bells`, sk: {}, bias: [] };
+          p.skills[best].lv += 2;
+          if (!p.skills[best].pas) p.skills[best].pas = 1;
+          Chron.log(world, `${p.label()} comes of age today — ${(titles[best] || 'colony-raised').toLowerCase()}, by upbringing and temperament. ${U.cap(p.he)} ${p.gender === 'nb' ? 'take' : 'takes'} a full share of the work now, and of the watch.`, { icon: '🎂', tone: 'good', major: true });
           p.addStory(world, `Came of age at ${world.colonyName}`);
+          Chron.remember(world, { kind: 'comingOfAge', text: `${p.label()} grew up and came of age here`, pawns: [p.id] });
           Overseer.assignRolesDaily(world);
         } else if (world.rng.chance(0.35)) {
           const fam = [p.family.mo, p.family.fa].map(id => world.byId[id]).filter(q => q && !q.dead);

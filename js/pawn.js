@@ -107,15 +107,24 @@ class Pawn {
     // inherit looks
     p.skin = rng.chance(0.5) ? mother.skin : (father ? father.skin : mother.skin);
     p.hair.color = rng.chance(0.5) ? mother.hair.color : (father ? father.hair.color : mother.hair.color);
-    // sometimes inherit a parent trait
+    if (rng.chance(0.6)) p.hair.style = rng.chance(0.5) ? mother.hair.style : (father ? father.hair.style : mother.hair.style);
+    // sometimes inherit a parent trait — and remember whose, for the gossip
     p.traits = [];
     const pool = [...mother.traits, ...(father ? father.traits : [])];
-    if (pool.length && rng.chance(0.6)) p.traits.push(rng.pick(pool));
+    if (pool.length && rng.chance(0.6)) {
+      const t = rng.pick(pool);
+      p.traits.push(t);
+      p.heirloom = { t, from: mother.traits.includes(t) ? mother.id : (father ? father.id : mother.id) };
+    }
     while (p.traits.length < 2) {
       const t = rng.pick(TRAIT_KEYS);
       if (!p.traits.includes(t)) p.traits.push(t);
     }
-    for (const s of SKILLS) p.skills[s] = { lv: 0, pas: mother.skills[s].pas && rng.chance(0.4) ? 1 : 0, xp: 0 };
+    // passions can come down from either parent
+    for (const s of SKILLS) {
+      const inherited = Math.max(mother.skills[s].pas, father ? father.skills[s].pas : 0);
+      p.skills[s] = { lv: 0, pas: inherited && rng.chance(0.45) ? Math.min(inherited, rng.chance(0.3) ? 2 : 1) : 0, xp: 0 };
+    }
     p.childhood = { key: 'colonyborn', n: 'Colony child', d: `was born at {colony}, under the open sky of the rim`, sk: {}, bias: [] };
     p.adulthood = null;
     p.disables = new Set();
