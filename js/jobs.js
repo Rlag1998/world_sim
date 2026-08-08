@@ -1392,12 +1392,19 @@ const Jobs = {
   checkBreakEnd(world, p, force) {
     if (!p.breaking) { Jobs.endJob(world, p); return; }
     if (force || world.t >= p.breaking.end) {
-      const kind = p.breaking.kind;
+      const kind = p.breaking.kind, sev = p.breaking.sev;
       p.breaking = null;
       p.breakCooldownUntil = world.t + 420; // no immediate re-break spiral
       p.addThought(world, 'catharsis');
       if (kind === 'berserk') p.addThought(world, 'survivedBerserk');
-      Chron.log(world, `${p.label()} has come back to ${p.his} senses.`, { icon: '😮‍💨', tone: 'neutral' });
+      // quiet recoveries stay off the record; the big ones deserve a line
+      if (sev !== 'minor') {
+        Chron.log(world, Chron.pick(world, [
+          `${p.label()} has come back to ${p.his} senses.`,
+          `The storm inside ${p.label()} has passed. ${U.cap(p.he)} ${p.gender === 'nb' ? 'are' : 'is'} quietly sweeping up what it broke.`,
+          `${p.label()} emerged, hollow-eyed but calm. Nobody said anything, which was the kindest thing available.`,
+        ]), { icon: '😮‍💨', tone: 'neutral' });
+      }
       Jobs.endJob(world, p);
     }
   },

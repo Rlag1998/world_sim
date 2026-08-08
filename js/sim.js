@@ -454,7 +454,10 @@ const Sim = {
       fire: `${p.label()}'s eyes have gone bright and wrong. ${U.cap(p.he)} is lighting fires${whyTxt}!`,
       leave: `${p.label()} is packing to leave. ${U.cap(p.he)} says the colony was a mistake${whyTxt}.`,
     }[kind];
-    Chron.log(world, prose, { icon: ICONS.break, tone: 'bad', major: sev !== 'minor', at: p });
+    // minor wobbles only sometimes make the chronicle; major breaks always do
+    if (sev !== 'minor' || world.rng.chance(0.45)) {
+      Chron.log(world, prose, { icon: ICONS.break, tone: 'bad', major: sev !== 'minor', at: p });
+    }
     if (sev !== 'minor') Renderer.focus(world, p.x, p.y, 6, `${p.label()} — mental break!`);
   },
 
