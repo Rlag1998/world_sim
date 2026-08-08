@@ -1332,9 +1332,12 @@ const Jobs = {
       const r = Jobs.advanceAdjacent(world, p, b.x, b.y);
       if (r === 'stuck') { j.targetId = null; return; }
       if (r === 'arrived' && world.t % 3 === 0) {
+        const name2 = BUILDINGS[b.key].n;
         const destroyed = Things.damageBuilding(world, b, world.rng.ri(4, 9));
         if (destroyed) {
-          Chron.log(world, `${p.label()} smashed the ${BUILDINGS[b.key].n} to splinters.`, { icon: ICONS.break, tone: 'bad' });
+          j.smashed = (j.smashed || 0) + 1;
+          if (j.smashed <= 2) Chron.log(world, `${p.label()} smashed the ${name2} to splinters.`, { icon: ICONS.break, tone: 'bad' });
+          else if (j.smashed === 3) Chron.log(world, `${p.label()} is still breaking things. The colony has stopped counting.`, { icon: ICONS.break, tone: 'bad' });
           j.targetId = null;
         }
       }
