@@ -18,7 +18,13 @@ a new chronicle begins on a fresh world.
 The only controls are spectator controls: pan/zoom the camera, click a colonist to
 read their story, double-click to follow them, and speed buttons — including
 **AUTO**, where a director camera chases the drama, slows down for weddings and
-raids, and fast-forwards quiet nights.
+raids, and fast-forwards quiet nights. The **🔊** button turns on procedural
+ambience — wind, rain, night crickets, birdsong, fire crackle near the camera,
+thunder after lightning, and an alarm bell when raiders appear — all synthesized,
+no audio files. The **saga** button condenses the chronicle into the moments this
+colony will be remembered for. And the tank keeps living while you work: with the
+tab in the background the simulation ticks on at real-time speed, so you come back
+to news.
 
 ## What the simulation actually simulates
 
@@ -49,12 +55,16 @@ ore veins, researchers climb a small tech tree, and the sculptor carves what the
 colony remembers: *"a carved column remembering the day the palisade was completed."*
 
 **A hostile world.** Raids from named pirate and tribal factions that scale with
-your wealth — with persistent antagonist leaders who escape, swear vendettas, and
-return; manhunter packs; hungry predators; cold snaps, heat waves, lightning
-storms and the fires they start; eclipses and auroras; disease outbreaks; trade
-caravans, drop-pod castaways, wanderers, self-taming pets that adopt the colony —
+your wealth — with persistent antagonist leaders who escape, swear vendettas,
+send taunting messages between raids, and return; refugees who arrive at a dead
+sprint with raiders on their heels; manhunter packs; hungry predators; cold
+snaps, heat waves, lightning storms and the fires they start; eclipses and
+auroras; disease outbreaks; trade caravans, drop-pod castaways, wanderers,
+foundlings left in baskets at the gate, self-taming pets that adopt the colony —
 and, sealed somewhere in the mountain, an ancient vault the miners will
-eventually get curious about.
+eventually get curious about. Against all this the colony escalates too: repaired
+and stone-upgraded walls, crafted flak armor, carved peg legs for lost limbs, and
+eventually gun turrets watching the gate.
 
 **A storyteller.** One of three personas (Cassia the Chronicler, The Whisper,
 Old Coyote) decides what happens when, balancing threat against mercy: breathing

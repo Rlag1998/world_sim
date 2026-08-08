@@ -466,6 +466,38 @@ const GameEvents = {
     return true;
   },
 
+  // A stranger sprinting for the gate with raiders on their heels: instant
+  // stakes, and if the colony holds, a grateful new colonist.
+  refugeeChase(world) {
+    const rng = world.rng;
+    const edge = world.map.randomEdgeSpot(rng, world);
+    const p = Pawn.make(world, { faction: 'colony', x: edge.x, y: edge.y, weapon: rng.chance(0.4) ? 'pistol' : null });
+    p.needs.rest = 0.4; p.needs.food = 0.3;
+    world.pawns.push(p); world.byId[p.id] = p;
+    p.addStory(world, `Reached ${world.colonyName} one sprint ahead of the raiders hunting ${p.him}`);
+    for (const q of world.pawns) if (q.isColonist() && q !== p) q.addThought(world, 'newColonist');
+    Chron.log(world, `A figure breaks from the treeline at a dead sprint — ${p.full()}, waving ${p.his} arms and screaming about what's behind ${p.him}. What's behind ${p.him} is already visible: dust, and spears.`, { icon: '🏃', tone: 'bad', major: true });
+    Renderer.cinematic(world, `${p.full()} arrives — with raiders on ${p.his} heels!`, edge, 8);
+    Overseer.assignRolesDaily(world);
+    const pts = Math.round(GameEvents.raidPoints(world) * 0.75);
+    GameEvents.spawnRaid(world, { faction: rng.chance(0.5) ? 'pirate' : 'tribe', points: Math.max(60, pts) });
+    return true;
+  },
+
+  // The antagonist likes to write. Menace between raids keeps the feud warm.
+  taunt(world) {
+    const facs = ['pirate', 'tribe'].map(k => world.factions[k]).filter(f => f.leaderAlive && f.raidsLed >= 1);
+    if (!facs.length) return false;
+    const fac = world.rng.pick(facs);
+    const leader = `${fac.leaderTitle} ${fac.leaderPawnName.first}`;
+    Chron.log(world, Chron.pick(world, [
+      `An arrow thuds into the gate at dawn, a scrap of hide tied to the shaft: "${world.rng.pick(['You count your harvest. I count my dead. We will settle both.', 'Fatten up. We like it better that way.', 'The wall is tall. Graves are deep. — ' + leader])}" The sentries burn it, but everyone has already read it.`,
+      `A trader passes along a message from ${leader} of the ${fac.name}, delivered with theatrical regret: ${world.colonyName} is "owed a visit." The colony's answer, voted unanimously over dinner, is not printable in this chronicle.`,
+    ]), { icon: '🏴', tone: 'bad', major: true });
+    if (world.rng.chance(0.5)) fac.grudge++;
+    return true;
+  },
+
   // A baby left at the edge of the map — the rim produces orphans, and
   // colonies with warm hearths inherit them. Any couple can end up parents.
   foundling(world) {
@@ -598,6 +630,11 @@ const EVENT_DEFS = [
     const kids = w.pawns.filter(p => p.isColonist() && p.stage(w) !== 'adult').length;
     return (pop >= 4 && pop < BAL.popSoftCap && kids < 3 && Things.countFood(w) > pop * 2) ? 3 : 0;
   }, run: w => GameEvents.foundling(w) },
+  { key: 'refugeeChase', cat: 'threat', cd: 16, w: w => {
+    const pop = w.pawns.filter(p => p.isColonist()).length;
+    return (w.day >= 12 && pop >= 3 && pop < BAL.popSoftCap) ? 3.5 : 0;
+  }, run: w => GameEvents.refugeeChase(w) },
+  { key: 'taunt', cat: 'neutral', cd: 9, w: w => (w.factions.pirate.raidsLed >= 1 && w.factions.pirate.leaderAlive) || (w.factions.tribe.raidsLed >= 1 && w.factions.tribe.leaderAlive) ? 2.5 : 0, run: w => GameEvents.taunt(w) },
   { key: 'trader', cat: 'neutral', cd: 5, w: w => w.caravan ? 0 : 5, run: w => GameEvents.traderCaravan(w) },
   { key: 'visitors', cat: 'neutral', cd: 4, w: w => 4, run: w => GameEvents.visitors(w) },
   { key: 'vault', cat: 'neutral', cd: 30, w: w => (w.map.vault && !w.map.vault.sensed && w.year0 >= 1) ? 3 : 0, run: w => GameEvents.vaultWhispers(w) },

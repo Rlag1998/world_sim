@@ -493,6 +493,21 @@ const Jobs = {
       return { type: 'mine', tx: best.x, ty: best.y, mineIdx: best.i, resKey: 'mine:' + best.i };
     },
 
+    repair(world, p) {
+      if (world.threat) return null;
+      let best = null, bestD = Infinity;
+      for (const b of world.buildings) {
+        if (b.blueprint) continue;
+        const def = BUILDINGS[b.key];
+        if (b.hp >= def.hp * 0.65 || def.grave) continue;
+        if (Jobs.taken(world, 'rep:' + b.id, p)) continue;
+        const d = U.dist(p.x, p.y, b.x, b.y);
+        if (d < bestD) { bestD = d; best = b; }
+      }
+      if (!best) return null;
+      return { type: 'repair', bId: best.id, resKey: 'rep:' + best.id };
+    },
+
     build(world, p) {
       if (p.skill('Construction') < 1 && !p.hasTrait('hardworker')) { /* anyone can build a bit */ }
       let best = null, bestD = Infinity;
@@ -1013,6 +1028,19 @@ const Jobs = {
           Overseer.onBuilt(world, b, p);
           Jobs.endJob(world, p);
         }
+      }
+    },
+
+    repair(world, p, j) {
+      const b = world.byId[j.bId];
+      if (!b || b.blueprint) { Jobs.endJob(world, p); return; }
+      const def = BUILDINGS[b.key];
+      if (b.hp >= def.hp) { Jobs.endJob(world, p); return; }
+      const r = Jobs.advanceAdjacent(world, p, b.x, b.y);
+      if (r === 'stuck') { Jobs.endJob(world, p); return; }
+      if (r === 'arrived') {
+        b.hp = Math.min(def.hp, b.hp + Jobs.workAmount(p, 'Construction') * 3);
+        if (b.hp >= def.hp) { p.gainXp(world, 'Construction', 25); Jobs.endJob(world, p); }
       }
     },
 

@@ -264,6 +264,7 @@ const BUILDINGS = {
   horseshoes: { n: 'horseshoes pin', cost: { steel: 2 }, wk: 6, hp: 30, flam: 0, v: 8, rec: 'horseshoes', walk: true, cat: 'decor' },
   gameTable: { n: 'game table', cost: { wood: 16 }, wk: 16, hp: 80, flam: 0.8, v: 24, rec: 'games', walk: true, cat: 'furniture' },
   sandbag: { n: 'barricade', cost: { wood: 4 }, wk: 10, hp: 160, flam: 0.2, v: 6, cover: 0.5, walk: true, cat: 'defense' },
+  turret: { n: 'gun turret', cost: { steel: 40, stone: 6 }, wk: 42, hp: 230, flam: 0, v: 130, turret: { dmg: 11, rng: 19, cd: 9, acc: 0.6 }, cat: 'defense' },
   grave: { n: 'grave', cost: {}, wk: 22, hp: 999, flam: 0, v: 2, grave: true, walk: true, cat: 'decor' },
   sculpture: { n: 'sculpture', cost: { stone: 10 }, wk: 0, hp: 120, flam: 0, v: 60, beauty: 6, cat: 'decor' },
   petBed: { n: 'animal bed', cost: { cloth: 8 }, wk: 8, hp: 40, flam: 0.9, v: 10, petBed: true, walk: true, cat: 'furniture' },

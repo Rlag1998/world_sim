@@ -32,6 +32,13 @@ const Main = {
     requestAnimationFrame((t) => this.frame(t));
     setInterval(() => this.autosave(), 45000);
     window.addEventListener('beforeunload', () => this.autosave());
+    // the tank keeps living while you work in another tab (throttled to 1×)
+    setInterval(() => {
+      if (!document.hidden || !this.world || this.world.gameOverState || this.speed === 0) return;
+      for (let k = 0; k < 6; k++) {
+        try { Sim.tick(this.world); } catch (err) { this.errorCount++; break; }
+      }
+    }, 1000);
   },
 
   newChronicle() {
@@ -86,6 +93,7 @@ const Main = {
 
     try { Renderer.draw(world, dtMs); } catch (err) { console.error('render error', err); }
     try { UIx.tick(world); } catch (err) { console.error('ui error', err); }
+    try { Ambience.update(world); } catch (err) { /* audio is optional */ }
 
     if (world.day !== this.lastSaveDay) { this.lastSaveDay = world.day; this.autosave(); }
     requestAnimationFrame((t) => this.frame(t));
@@ -139,6 +147,12 @@ const Main = {
     });
     document.getElementById('btn-new').addEventListener('click', () => {
       if (confirm('Abandon this chronicle and begin a new one?')) this.newChronicle();
+    });
+    document.getElementById('btn-sound').addEventListener('click', () => {
+      const on = Ambience.toggle();
+      const b = document.getElementById('btn-sound');
+      b.textContent = on ? '🔊' : '🔇';
+      b.classList.toggle('on', on);
     });
     window.addEventListener('keydown', (ev) => {
       if (ev.key === ' ') { ev.preventDefault(); this.setSpeed(this.speed === 0 ? 1 : 0, true); }

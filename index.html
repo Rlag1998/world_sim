@@ -28,6 +28,7 @@
       <button class="speed-btn" data-speed="2" title="Fast (2)">▶▶</button>
       <button class="speed-btn" data-speed="3" title="Very fast (3)">▶▶▶</button>
       <button id="btn-auto" class="speed-btn wide" title="Let the director pace the story">AUTO</button>
+      <button id="btn-sound" class="speed-btn" title="Ambient sound">🔇</button>
       <button id="btn-new" class="speed-btn wide" title="Abandon and start a new chronicle">⟳ New</button>
     </span>
   </div>
@@ -37,7 +38,10 @@
   <aside id="chronicle-panel">
     <div class="panel-head">
       <span>The Chronicle</span>
-      <button id="chron-filter" class="mini-btn" title="Show only major events">major</button>
+      <span>
+        <button id="chron-saga" class="mini-btn" title="The saga so far: the moments this colony will remember">saga</button>
+        <button id="chron-filter" class="mini-btn" title="Show only major events">major</button>
+      </span>
     </div>
     <div id="chronicle-list"></div>
   </aside>
@@ -75,6 +79,7 @@
 <script src="js/narrator.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/render.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 </body>

@@ -15,8 +15,16 @@ const UIx = {
     this.pinned = true;
     this.$('chron-filter').addEventListener('click', () => {
       this.majorOnly = !this.majorOnly;
+      this.sagaMode = false;
+      this.$('chron-saga').classList.remove('on');
       this.$('chron-filter').classList.toggle('on', this.majorOnly);
       this.rebuildChronicle(W);
+    });
+    this.$('chron-saga').addEventListener('click', () => {
+      this.sagaMode = !this.sagaMode;
+      this.$('chron-saga').classList.toggle('on', this.sagaMode);
+      if (this.sagaMode) this.renderSaga(W);
+      else this.rebuildChronicle(W);
     });
     this.chronList.addEventListener('scroll', () => {
       const el = this.chronList;
@@ -61,7 +69,20 @@ const UIx = {
     </div>`;
   },
 
+  // "The saga so far" — the memory bank as a condensed legend of this colony
+  renderSaga(world) {
+    const mems = world.chron.memories;
+    let html = `<div class="chron-chapter"><span>the saga so far</span>${world.colonyName}</div>`;
+    if (!mems.length) html += `<div class="chron-entry"><div class="chron-text">Nothing legendary yet. Give them time — or trouble.</div></div>`;
+    for (const m of mems) {
+      html += `<div class="chron-entry major"><div class="chron-date">day ${m.day}</div><div class="chron-text">${U.cap(m.text)}.</div></div>`;
+    }
+    this.chronList.innerHTML = html;
+    this.chronList.scrollTop = this.chronList.scrollHeight;
+  },
+
   appendChronicle(world) {
+    if (this.sagaMode) return;
     const entries = world.chron.entries;
     if (this.lastChronIx > entries.length) { this.rebuildChronicle(world); return; }
     let html = '';

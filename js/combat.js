@@ -413,6 +413,33 @@ const Combat = {
     }
   },
 
+  // ---- turrets -------------------------------------------------------------
+  tickTurrets(world) {
+    if (!world.threat) return;
+    for (const b of world.buildings) {
+      if (b.blueprint) continue;
+      const def = BUILDINGS[b.key];
+      if (!def.turret) continue;
+      b.cd = Math.max(0, (b.cd || 0) - 1);
+      if (b.cd > 0) continue;
+      const probe = { faction: 'colony', x: b.x, y: b.y };
+      let target = null, bestD = Infinity;
+      for (const t of Combat.hostileTargetsFor(world, probe)) {
+        const d = U.dist(b.x, b.y, t.x, t.y);
+        if (d < bestD && d <= def.turret.rng) { bestD = d; target = t; }
+      }
+      if (!target) continue;
+      if (!world.map.hasLOS(b.x, b.y, target.x, target.y, world)) continue;
+      b.cd = def.turret.cd;
+      b.aimX = target.x; b.aimY = target.y; b.firedT = world.t;
+      let acc = def.turret.acc * (1 - U.clamp(bestD / def.turret.rng, 0, 1) * 0.35);
+      acc *= (1 - world.map.coverAt(Math.round(target.x), Math.round(target.y), world) * 0.5);
+      const hit = world.rng.chance(U.clamp(acc, 0.05, 0.9));
+      world.fx.push({ kind: 'shot', x1: b.x, y1: b.y, x2: target.x + world.rng.rf(-0.4, 0.4), y2: target.y + world.rng.rf(-0.4, 0.4), t: world.t, hit });
+      if (hit) target.applyDamage(world, def.turret.dmg * world.rng.rf(0.75, 1.2), 'gunshot', 'the turret');
+    }
+  },
+
   // ---- raid group management ---------------------------------------------
   tickRaids(world) {
     for (let i = world.raids.length - 1; i >= 0; i--) {

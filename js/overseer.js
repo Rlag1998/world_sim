@@ -350,6 +350,40 @@ const Overseer = {
       plan.cottonField = true;
       return;
     }
+    // turrets flanking the gate once gunsmithing is mastered
+    if (world.techsDone.includes('gunsmithing') && plan.perimeterPlanned && !plan.turretsPlanned && Things.count(world, 'steel') >= 46) {
+      plan.turretsPlanned = true;
+      const line = world.zones.defense || [];
+      let placed = 0;
+      for (const spot of line) {
+        if (placed >= 2) break;
+        const p2 = world.map.findSpotNear(spot.x, spot.y, 3, (x, y) => !world.map.bIdx[world.map.idx(x, y)] && world.map.standable(x, y, world));
+        if (p2) {
+          const b = Things.addBlueprint(world, 'turret', p2.x, p2.y);
+          if (b) { world.plan.placed.push({ key: 'turret', x: p2.x, y: p2.y }); placed++; }
+        }
+      }
+      if (placed) Chron.log(world, `The machinists are assembling ${placed === 1 ? 'a gun turret' : 'gun turrets'} to watch the gate. The colony sleeps easier already, and louder soon.`, { icon: ICONS.build, tone: 'good', major: true });
+      return;
+    }
+    // creeping upgrade: wooden perimeter becomes stone, a stretch at a time
+    if (world.techsDone.includes('fortification') && plan.perimeterPlanned && !world.threat && Things.count(world, 'stone') >= 24 && world.hourOfDay === 13) {
+      let swapped = 0;
+      for (const pl of world.plan.placed) {
+        if (swapped >= 2) break;
+        if (pl.key !== 'wallWood') continue;
+        const bid = world.map.bIdx[world.map.idx(pl.x, pl.y)];
+        const b = bid ? world.byId[bid] : null;
+        if (!b || b.blueprint || b.key !== 'wallWood') continue;
+        Things.removeBuilding(world, b);
+        const bp = Things.addBlueprint(world, 'wallStone', pl.x, pl.y);
+        if (bp) { pl.key = 'wallStone'; swapped++; }
+      }
+      if (swapped && !plan.stoneWallAnnounced) {
+        plan.stoneWallAnnounced = true;
+        Chron.log(world, `Stone is replacing timber along the wall, one course at a time. Future raiders will find ${world.colonyName} considerably less flammable.`, { icon: ICONS.build, tone: 'good' });
+      }
+    }
   },
 
   maintainZones(world, pop) {
@@ -478,10 +512,40 @@ const Overseer = {
     if (world.techsDone.includes('brewing') && Things.count(world, 'hops') >= 6 && Things.count(world, 'beer') < 15) {
       ensureBill('beer', { bench: 'brewing', skill: 'Cooking', wk: 24, cost: { hops: 6 }, out: 'beer', outQty: 5, tech: 'brewing' }, 3);
     }
+    // flak vests for the unarmored line
+    if (world.techsDone.includes('smithing') && Things.count(world, 'steel') >= 25 && Things.count(world, 'cloth') >= 6) {
+      const unarmored = colonists.filter(p => p.canFight(world) && p.apparel !== 'flak' && p.apparel !== 'parka').length;
+      if (unarmored > 1) ensureBill('flak', { bench: 'smithing', skill: 'Crafting', wk: 34, cost: { steel: 25, cloth: 6 }, out: 'apparel', outKey: 'flak', tech: 'smithing' }, 1);
+    }
+    // peg legs for those the rim took a leg from
+    if (world.techsDone.includes('smithing')) {
+      const legless = colonists.filter(p => p.lostParts.includes('lLeg') || p.lostParts.includes('rLeg')).length;
+      if (legless > 0 && Things.count(world, 'steel') >= 4 && Things.count(world, 'wood') >= 6) {
+        ensureBill('pegleg', { bench: 'smithing', skill: 'Crafting', wk: 28, cost: { wood: 6, steel: 4 }, out: 'pegleg', tech: 'smithing' }, legless);
+      }
+    }
   },
 
   finishBill(world, bill, p, bench) {
     switch (bill.out) {
+      case 'pegleg': {
+        const patient = world.pawns.find(q => q.isColonist() && (q.lostParts.includes('lLeg') || q.lostParts.includes('rLeg')));
+        if (patient) {
+          const leg = patient.lostParts.includes('lLeg') ? 'lLeg' : 'rLeg';
+          patient.lostParts = patient.lostParts.filter(k => k !== leg);
+          patient.parts[leg].hp = Math.round(BODY_PARTS[leg].max * 0.55);
+          patient.pegLeg = true;
+          patient.recomputePain();
+          patient.checkDowned(world);
+          patient.addStory(world, `Fitted with a carved peg leg by ${p.label()}`);
+          Chron.log(world, Chron.pick(world, [
+            `${p.label()} fitted ${patient.label()} with a carved peg leg. First lap of the yard: slow, loud, triumphant. ${U.cap(patient.he)} walks again.`,
+            `A peg leg for ${patient.label()}, oak and steel and ${p.label()}'s best work. The tapping in the corridor is the sound of a promise kept.`,
+          ]), { icon: ICONS.heal, tone: 'good', major: true });
+          Chron.remember(world, { kind: 'heal', text: `${patient.label()} walked again on a carved peg leg`, pawns: [patient.id, p.id] });
+        }
+        break;
+      }
       case 'stone': Things.drop(world, bench.x, bench.y, 'stone', bill.outQty || 4); break;
       case 'medkit': Things.drop(world, bench.x, bench.y, 'medkit', bill.outQty || 2); break;
       case 'beer': Things.drop(world, bench.x, bench.y, 'beer', bill.outQty || 5); break;
@@ -595,7 +659,7 @@ const Overseer = {
         const ix = roles.indexOf('research');
         if (ix > 0) { roles.splice(ix, 1); roles.splice(1, 0, 'research'); }
       }
-      for (const k of ['harvest', 'sow', 'build', 'haul', 'craft', 'clean']) if (!roles.includes(k)) roles.push(k);
+      for (const k of ['harvest', 'sow', 'build', 'repair', 'haul', 'craft', 'clean']) if (!roles.includes(k)) roles.push(k);
       p.roles = roles;
     }
     Overseer.assignBeds(world, colonists);

@@ -307,6 +307,11 @@ class Pawn {
         inj.bleed *= 2.2;
         Chron.log(world, `${this.label()} lost ${this.his} ${PART_LABEL[part]}${srcLabel ? ' to ' + srcLabel : ''}.`, { icon: ICONS.bad, tone: 'bad', major: this.isColonist() });
         this.addStory(world, `Lost ${this.his} ${PART_LABEL[part]}${srcLabel ? ' to ' + srcLabel : ''}`);
+        // scars earn names on the rim
+        if (part === 'eyes' && this.isColonist() && !this.name.nick && world.rng.chance(0.6)) {
+          this.name.nick = world.rng.pick(['One-Eye', 'Patch', 'Wink']);
+          Chron.log(world, `The colony has started calling ${this.him} "${this.name.nick}". ${U.cap(this.he)} pretends to mind.`, { icon: '🏷️', tone: 'neutral' });
+        }
       }
     }
     this.recomputePain();

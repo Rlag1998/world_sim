@@ -469,6 +469,25 @@ const Renderer = {
         if (b.working && world.t - b.working < 5) { ctx.fillStyle = 'rgba(255,230,150,0.5)'; ctx.fillRect(s.x + z * 0.3, s.y + z * 0.3, z * 0.4, z * 0.3); }
         break;
       }
+      case 'turret': {
+        ctx.fillStyle = '#5a6068';
+        ctx.beginPath(); ctx.arc(s.x + z / 2, s.y + z / 2, z * 0.4, 0, 7); ctx.fill();
+        ctx.fillStyle = '#82888f';
+        ctx.beginPath(); ctx.arc(s.x + z / 2, s.y + z / 2, z * 0.26, 0, 7); ctx.fill();
+        // barrel tracks the last target
+        const ang = (b.aimX != null) ? Math.atan2(b.aimY - b.y, b.aimX - b.x) : -Math.PI / 2;
+        ctx.strokeStyle = '#3c4046';
+        ctx.lineWidth = Math.max(1.4, z * 0.12);
+        ctx.beginPath();
+        ctx.moveTo(s.x + z / 2, s.y + z / 2);
+        ctx.lineTo(s.x + z / 2 + Math.cos(ang) * z * 0.55, s.y + z / 2 + Math.sin(ang) * z * 0.55);
+        ctx.stroke();
+        if (b.firedT && world.t - b.firedT < 2) {
+          ctx.fillStyle = 'rgba(255,220,120,0.9)';
+          ctx.beginPath(); ctx.arc(s.x + z / 2 + Math.cos(ang) * z * 0.6, s.y + z / 2 + Math.sin(ang) * z * 0.6, z * 0.12, 0, 7); ctx.fill();
+        }
+        break;
+      }
       case 'sandbag': {
         ctx.fillStyle = '#8f8258';
         ctx.fillRect(s.x + z * 0.05, s.y + z * 0.35, z * 0.9, z * 0.45);

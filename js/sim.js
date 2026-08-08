@@ -559,6 +559,7 @@ const Sim = {
     if (world.map.roomsDirty && world.t % 20 === 0) world.map.recomputeRooms(world);
     if (world.t % 3 === 0) Combat.updateThreat(world);
     if (world.t % 5 === 0) Combat.tickRaids(world);
+    Combat.tickTurrets(world);
 
     // pawns
     for (const p of [...world.pawns]) {
