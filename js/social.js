@@ -240,8 +240,8 @@ const Social = {
         if (mate && !mate.dead && mate.isColonist() && mate.gender === 'm') {
           const foodOk = Things.countFood(world) > colonists.length * 2;
           const popOk = colonists.length < BAL.popSoftCap + 2;
-          if (foodOk && popOk && rng.chance(p.spouseId ? 0.05 : 0.02)) {
-            p.pregnant = { by: mate.id, due: world.day + 12 };
+          if (foodOk && popOk && rng.chance(p.spouseId ? 0.09 : 0.035)) {
+            p.pregnant = { by: mate.id, due: world.day + 10 };
             Chron.log(world, Chron.pick(world, [
               `${p.label()} is expecting a child with ${mate.label()}. A new thread begins in the chronicle.`,
               `Quiet news over breakfast: ${p.label()} and ${mate.label()} are going to be parents.`,

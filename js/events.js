@@ -466,6 +466,42 @@ const GameEvents = {
     return true;
   },
 
+  // A baby left at the edge of the map — the rim produces orphans, and
+  // colonies with warm hearths inherit them. Any couple can end up parents.
+  foundling(world) {
+    const rng = world.rng;
+    const colonists = world.pawns.filter(p => p.isColonist() && p.stage(world) === 'adult');
+    if (colonists.length < 3) return false;
+    // adoptive parents: a married pair if one exists, else lovers, else two friends
+    let a = null, b = null;
+    for (const p of colonists) {
+      if (p.spouseId && world.byId[p.spouseId] && world.byId[p.spouseId].isColonist()) { a = p; b = world.byId[p.spouseId]; break; }
+    }
+    if (!a) for (const p of colonists) {
+      if (p.loverId && world.byId[p.loverId] && world.byId[p.loverId].isColonist()) { a = p; b = world.byId[p.loverId]; break; }
+    }
+    if (!a) { a = rng.pick(colonists); b = null; }
+    const baby = Pawn.makeBaby(world, a, b);
+    const edge = world.map.randomEdgeSpot(rng, world);
+    baby.x = edge.x; baby.y = edge.y;
+    world.pawns.push(baby); world.byId[baby.id] = baby;
+    baby.addStory(world, `Found as a foundling at the edge of ${world.colonyName}`);
+    a.addStory(world, `Took in the foundling ${baby.name.first}`);
+    if (b) b.addStory(world, `Took in the foundling ${baby.name.first}`);
+    a.addThought(world, 'newBabyMine');
+    if (b) b.addThought(world, 'newBabyMine');
+    for (const p of world.pawns) if (p.isColonist() && p !== a && p !== b) p.addThought(world, 'newBabyColony');
+    Chron.log(world, Chron.pick(world, [
+      `A basket at the ${GameEvents.sideName(edge)} boundary this morning — inside, wrapped against the cold, a baby. A note in rough letters: "better with you." ${a.label()}${b ? ' and ' + b.label() : ''} carried ${baby.gender === 'm' ? 'him' : baby.gender === 'f' ? 'her' : 'them'} home and named ${baby.gender === 'm' ? 'him' : baby.gender === 'f' ? 'her' : 'them'} ${baby.name.first}.`,
+      `Refugees passed in the night; at dawn there was one more mouth at ${world.colonyName} — an infant, left where the sentry would find ${baby.gender === 'm' ? 'him' : baby.gender === 'f' ? 'her' : 'them'}. ${a.label()} didn't even pretend to deliberate. The child is called ${baby.name.first} now.`,
+    ]), { icon: ICONS.baby, tone: 'good', major: true });
+    Chron.remember(world, { kind: 'birth', text: `${baby.name.first} the foundling was taken in`, pawns: [baby.id, a.id, b ? b.id : null].filter(Boolean) });
+    Chron.maybeChapter(world, 'birth', `The Foundling`);
+    Renderer.cinematic(world, `A foundling at the gates: ${baby.name.first}`, edge, 7);
+    Overseer.noteNewResident(world, baby);
+    return true;
+  },
+
   // ---- the vault -----------------------------------------------------------
   vaultWhispers(world) {
     const v = world.map.vault;
@@ -557,6 +593,11 @@ const EVENT_DEFS = [
   { key: 'aurora', cat: 'fortune', cd: 9, w: w => 3, run: w => GameEvents.aurora(w) },
   { key: 'warmSpell', cat: 'fortune', cd: 10, w: w => w.season === 'Winter' ? 3 : 0, run: w => GameEvents.warmSpell(w) },
   { key: 'returnee', cat: 'fortune', cd: 10, w: w => w.gonePawns.length ? 6 : 0, run: w => GameEvents.returnee(w) },
+  { key: 'foundling', cat: 'fortune', cd: 24, w: w => {
+    const pop = w.pawns.filter(p => p.isColonist()).length;
+    const kids = w.pawns.filter(p => p.isColonist() && p.stage(w) !== 'adult').length;
+    return (pop >= 4 && pop < BAL.popSoftCap && kids < 3 && Things.countFood(w) > pop * 2) ? 3 : 0;
+  }, run: w => GameEvents.foundling(w) },
   { key: 'trader', cat: 'neutral', cd: 5, w: w => w.caravan ? 0 : 5, run: w => GameEvents.traderCaravan(w) },
   { key: 'visitors', cat: 'neutral', cd: 4, w: w => 4, run: w => GameEvents.visitors(w) },
   { key: 'vault', cat: 'neutral', cd: 30, w: w => (w.map.vault && !w.map.vault.sensed && w.year0 >= 1) ? 3 : 0, run: w => GameEvents.vaultWhispers(w) },
