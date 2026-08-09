@@ -16,6 +16,9 @@ const Overseer = {
       firstRaidSeen: false,
       firstDeathSeen: false,
       prisonWanted: false,
+      // half of all colonies build their village east-west flipped, so no two
+      // settlements read as copies of one blueprint
+      mirX: world.rng.chance(0.5) ? -1 : 1,
     };
   },
 
@@ -43,6 +46,11 @@ const Overseer = {
   planRoom(world, label, spec) {
     const map = world.map;
     const home = map.home;
+    // each village grows a little differently: rooms sometimes a step roomier,
+    // and the whole campus may be east-west mirrored per world
+    if (spec.w >= 5 && world.rng.chance(0.35)) spec = { ...spec, w: spec.w + 1 };
+    if (spec.h >= 5 && world.rng.chance(0.3)) spec = { ...spec, h: spec.h + 1 };
+    if ((world.plan.mirX || 1) < 0) spec = { ...spec, dx: -(spec.dx + spec.w - 1) };
     const offsets = [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3], [6, 0], [-6, 0], [0, 6], [0, -6], [9, 0], [-9, 0]];
     let X = null, Y = null;
     for (const [ox, oy] of offsets) {
@@ -147,26 +155,41 @@ const Overseer = {
     return best;
   },
 
+  // Only work the builders could start RIGHT NOW counts against the stage
+  // gates — a stove waiting on steel is a wish, not a backlog.
   blueprintBacklog(world) {
     let n = 0;
-    for (const b of world.buildings) if (b.blueprint) n++;
+    for (const b of world.buildings) {
+      if (!b.blueprint) continue;
+      const cost = BUILDINGS[b.key].cost || {};
+      let affordable = true;
+      for (const [kind, qty] of Object.entries(cost)) {
+        if (Things.count(world, kind) < qty) { affordable = false; break; }
+      }
+      if (affordable) n++;
+    }
     return n;
   },
 
-  // Blueprints that sit untouched for days (no materials, unreachable) are
-  // cancelled so they can't wedge the whole construction ladder.
+  // Structural blueprints (cheap wood/stone) stuck untouched for days are
+  // unreachable — cancel them so they can't wedge the ladder. Furniture is
+  // never cancelled: it is merely waiting on materials, and patience is free.
   timeoutStaleBlueprints(world) {
+    const structural = new Set(['wallWood', 'wallStone', 'doorWood', 'doorStone', 'floorWood', 'floorStone', 'sandbag']);
     let cancelled = 0;
     for (const b of [...world.buildings]) {
-      if (!b.blueprint) continue;
+      if (!b.blueprint || !structural.has(b.key)) continue;
       if (b.bpDay == null) { b.bpDay = world.day; continue; }
-      if (world.day - b.bpDay > 4 && (b.work || 0) === 0) {
+      const cost = BUILDINGS[b.key].cost || {};
+      let affordable = true;
+      for (const [kind, qty] of Object.entries(cost)) if (Things.count(world, kind) < qty) { affordable = false; break; }
+      if (world.day - b.bpDay > 4 && (b.work || 0) === 0 && affordable) {
         for (const pl of world.plan.placed) if (pl.x === b.x && pl.y === b.y && pl.key === b.key) pl.dead = true;
         Things.removeBuilding(world, b);
         cancelled++;
       }
     }
-    if (cancelled >= 3) Chron.log(world, `The overseer's grander plans have been quietly trimmed — ${cancelled} pieces struck from the ledger for want of materials or access.`, { icon: ICONS.build, tone: 'neutral' });
+    if (cancelled >= 3) Chron.log(world, `The overseer's grander plans have been quietly trimmed — ${cancelled} pieces struck from the ledger as unreachable.`, { icon: ICONS.build, tone: 'neutral' });
     return cancelled;
   },
 
@@ -443,10 +466,11 @@ const Overseer = {
   },
 
   maintainZones(world, pop) {
-    // graveyard appears on first death
+    // graveyard appears on first death (mirrored with the rest of the village)
     if (world.plan.firstDeathSeen && !world.zones.graveyard) {
       const home = world.map.home;
-      world.zones.graveyard = { x: home.x - 22, y: home.y + 9, w: 5, h: 6, used: 0 };
+      const gx = (world.plan.mirX || 1) < 0 ? home.x + 18 : home.x - 22;
+      world.zones.graveyard = { x: gx, y: home.y + 9, w: 5, h: 6, used: 0 };
     }
     // our dead deserve graves: one open plot per colonist corpse
     const colonistCorpses = world.items.filter(s => s.kind === 'corpse' && s.meta.faction === 'colony' && !s.meta.animal).length;
