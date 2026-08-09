@@ -78,7 +78,8 @@ const Renderer = {
       if (!target) {
         // idle: drift after a working colonist, or hover the base
         this.caption = null;
-        if (!this.idleTargetId || world.rng.chance(0.002) || !world.byId[this.idleTargetId] || world.byId[this.idleTargetId].dead) {
+        // Math.random on purpose: the camera must never eat the story's dice
+        if (!this.idleTargetId || Math.random() < 0.002 || !world.byId[this.idleTargetId] || world.byId[this.idleTargetId].dead) {
           const workers = world.pawns.filter(p => p.isColonist() && !p.downed);
           this.idleTargetId = workers.length ? workers[Math.floor(Math.random() * workers.length)].id : null;
         }

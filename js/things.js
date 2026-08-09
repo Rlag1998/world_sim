@@ -41,6 +41,14 @@ const Things = {
     return stack;
   },
 
+  // Lifting a stack off the ground: mark carried and clear its grid entry so
+  // the tile doesn't stay haunted by a phantom reference.
+  pickUpStack(world, s) {
+    const i = world.map.idx(s.x, s.y);
+    if (world.map.itemG[i] === s.id) world.map.itemG[i] = 0;
+    s.carried = true;
+  },
+
   removeStack(world, stack) {
     const i = world.map.idx(stack.x, stack.y);
     if (world.map.itemG[i] === stack.id) world.map.itemG[i] = 0;
@@ -205,6 +213,11 @@ const Things = {
       const def = ITEMS[s.kind];
       let rotD = def && def.rotD;
       if (s.kind === 'corpse') rotD = 30;
+      // battlefield litter rusts away so old worlds don't drown in scrap
+      if ((s.kind === 'weaponItem' || s.kind === 'chunk') && !Things.inStockpile(world, s) && world.day - s.day > 40) {
+        Things.removeStack(world, s);
+        continue;
+      }
       if (!rotD) continue;
       if (world.tempOut <= 0) { s.day++; continue; } // frozen: preserved
       const room = world.map.roomAt(s.x, s.y);

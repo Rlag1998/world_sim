@@ -63,8 +63,22 @@ const Overseer = {
       const isEdge = (xx === X || xx === X + spec.w - 1 || yy === Y || yy === Y + spec.h - 1);
       if (!isEdge) continue;
       const i = map.idx(xx, yy);
-      if (map.bIdx[i]) continue; // shared wall exists
-      const key = (xx === doorX && yy === doorY) ? doorKey : wallKey;
+      const isDoor = (xx === doorX && yy === doorY);
+      if (map.bIdx[i]) {
+        // the door tile must BE a door — if a shared wall already stands there,
+        // swap it out, or the room is born sealed
+        if (isDoor) {
+          const existing = world.byId[map.bIdx[i]];
+          if (existing && (existing.key === 'wallWood' || existing.key === 'wallStone')) {
+            Things.removeBuilding(world, existing);
+            const d = Things.addBlueprint(world, doorKey, xx, yy);
+            if (d) world.plan.placed.push({ key: doorKey, x: xx, y: yy });
+            for (const pl of world.plan.placed) if (pl.x === xx && pl.y === yy && (pl.key === 'wallWood' || pl.key === 'wallStone')) pl.dead = true;
+          }
+        }
+        continue;
+      }
+      const key = isDoor ? doorKey : wallKey;
       const b = Things.addBlueprint(world, key, xx, yy);
       if (b) world.plan.placed.push({ key, x: xx, y: yy });
     }
@@ -133,6 +147,29 @@ const Overseer = {
     return best;
   },
 
+  blueprintBacklog(world) {
+    let n = 0;
+    for (const b of world.buildings) if (b.blueprint) n++;
+    return n;
+  },
+
+  // Blueprints that sit untouched for days (no materials, unreachable) are
+  // cancelled so they can't wedge the whole construction ladder.
+  timeoutStaleBlueprints(world) {
+    let cancelled = 0;
+    for (const b of [...world.buildings]) {
+      if (!b.blueprint) continue;
+      if (b.bpDay == null) { b.bpDay = world.day; continue; }
+      if (world.day - b.bpDay > 4 && (b.work || 0) === 0) {
+        for (const pl of world.plan.placed) if (pl.x === b.x && pl.y === b.y && pl.key === b.key) pl.dead = true;
+        Things.removeBuilding(world, b);
+        cancelled++;
+      }
+    }
+    if (cancelled >= 3) Chron.log(world, `The overseer's grander plans have been quietly trimmed — ${cancelled} pieces struck from the ledger for want of materials or access.`, { icon: ICONS.build, tone: 'neutral' });
+    return cancelled;
+  },
+
   // ---- staged base development -------------------------------------------
   tickHourly(world) {
     const plan = world.plan;
@@ -141,6 +178,7 @@ const Overseer = {
     const pop = colonists.length;
     const wood = Things.count(world, 'wood');
     const home = world.map.home;
+    if (world.hourOfDay === 5) Overseer.timeoutStaleBlueprints(world);
 
     // Stage 0: landing — cabin, campfire, stockpile, first farm
     if (plan.stage === 0) {
@@ -178,7 +216,7 @@ const Overseer = {
     }
 
     // Stage 1: once cabin exists → kitchen & real bedrooms & research
-    if (plan.stage === 1 && !world.buildings.some(b => b.blueprint) && wood > 40) {
+    if (plan.stage === 1 && Overseer.blueprintBacklog(world) < 8 && wood > 40) {
       Overseer.planRoom(world, 'kitchen', {
         dx: 6, dy: -6, w: 7, h: 6,
         furniture: [{ key: 'stove', dx: 2, dy: 1 }, { key: 'butcher', dx: 4, dy: 1 }, { key: 'table', dx: 2, dy: 3 }, { key: 'stool', dx: 1, dy: 3 }, { key: 'stool', dx: 3, dy: 3 }],
@@ -193,14 +231,14 @@ const Overseer = {
     }
 
     // Stage 2: private bedrooms
-    if (plan.stage === 2 && !world.buildings.some(b => b.blueprint) && wood > 60) {
+    if (plan.stage === 2 && Overseer.blueprintBacklog(world) < 8 && wood > 60) {
       Overseer.addBedrooms(world, Math.min(pop, 4));
       plan.stage = 3;
       return;
     }
 
     // Stage 3: workshop & stockpile barn
-    if (plan.stage === 3 && !world.buildings.some(b => b.blueprint) && wood > 50) {
+    if (plan.stage === 3 && Overseer.blueprintBacklog(world) < 8 && wood > 50) {
       Overseer.planRoom(world, 'workshop', {
         dx: 6, dy: 2, w: 8, h: 6,
         furniture: [{ key: 'workbench', dx: 1, dy: 1 }, { key: 'tailorBench', dx: 4, dy: 1 }, { key: 'torch', dx: 6, dy: 4 }],
@@ -213,14 +251,14 @@ const Overseer = {
     }
 
     // Stage 4: defenses (triggered by fear or prosperity)
-    if (plan.stage === 4 && (plan.firstRaidSeen || Sim.colonyWealth(world) > 6000) && !world.buildings.some(b => b.blueprint)) {
+    if (plan.stage === 4 && (plan.firstRaidSeen || Sim.colonyWealth(world) > 6000) && Overseer.blueprintBacklog(world) < 8) {
       Overseer.planPerimeter(world);
       plan.stage = 5;
       return;
     }
 
     // Stage 5: comfort — rec room, hospital, hearth, flowers
-    if (plan.stage === 5 && !world.buildings.some(b => b.blueprint) && wood > 60) {
+    if (plan.stage === 5 && Overseer.blueprintBacklog(world) < 8 && wood > 60) {
       Overseer.planRoom(world, 'recroom', {
         dx: -11, dy: -13, w: 8, h: 6,
         furniture: [{ key: 'gameTable', dx: 2, dy: 2 }, { key: 'stool', dx: 1, dy: 2 }, { key: 'stool', dx: 3, dy: 2 }, { key: 'horseshoes', dx: 5, dy: 3 }, { key: 'hearth', dx: 5, dy: 1 }],
@@ -255,15 +293,16 @@ const Overseer = {
       { dx: -13, dy: -17 }, { dx: -8, dy: -17 }, { dx: -3, dy: -17 }, { dx: 2, dy: -17 }, { dx: 7, dy: -17 }, { dx: 12, dy: -17 },
       { dx: -18, dy: -12 }, { dx: -18, dy: -17 }, { dx: 17, dy: -12 }, { dx: 17, dy: -17 },
     ];
-    let added = 0;
-    for (let k = 0; k < n && world.plan.bedroomSlots < slots.length; k++) {
-      const s = slots[world.plan.bedroomSlots++];
-      const ok = Overseer.planRoom(world, 'bedroom' + world.plan.bedroomSlots, {
+    let added = 0, cursor = world.plan.bedroomSlots;
+    while (added < n && cursor < slots.length) {
+      const s = slots[cursor++];
+      const ok = Overseer.planRoom(world, 'bedroom' + cursor, {
         dx: s.dx, dy: s.dy, w: 5, h: 5,
         furniture: [{ key: 'bed', dx: 1, dy: 1 }],
       });
-      if (ok) added++;
+      if (ok) added++; // failed slots stay consumed, but only count successes against demand
     }
+    world.plan.bedroomSlots = cursor;
     return added;
   },
 
@@ -308,7 +347,7 @@ const Overseer = {
 
   growthPass(world, colonists) {
     const plan = world.plan;
-    if (world.buildings.some(b => b.blueprint)) return; // one project at a time
+    if (Overseer.blueprintBacklog(world) >= 10) return; // don't drown the builders
     // bedrooms for the homeless
     const beds = world.buildings.filter(b => !b.blueprint && BUILDINGS[b.key].bed && !BUILDINGS[b.key].crib && !b.prison);
     const adults = colonists.filter(p => p.stage(world) !== 'baby' && p.stage(world) !== 'toddler');
@@ -430,8 +469,9 @@ const Overseer = {
       bestList.sort((a, b) => a.d - b.d);
       for (const t of bestList) { world.chopQueue.add(t.i); if (++added >= 5) break; }
     }
-    // steel & stone via mining
-    const needSteel = Things.count(world, 'steel') < 30 && (world.techsDone.includes('smithing') || world.plan.stage >= 1);
+    // steel & stone via mining — turrets need a real stockpile, not a pantry
+    const steelTarget = world.techsDone.includes('gunsmithing') ? 70 : world.techsDone.includes('smithing') ? 45 : 30;
+    const needSteel = Things.count(world, 'steel') < steelTarget && (world.techsDone.includes('smithing') || world.plan.stage >= 1);
     const needStone = Things.count(world, 'chunk') < 10 && world.techsDone.includes('stonecutting');
     if ((needSteel || needStone) && world.mineQueue.size < 5) {
       let candidates = [];
@@ -466,11 +506,15 @@ const Overseer = {
   },
 
   maintainBills(world, pop, colonists) {
+    // demand is recomputed absolutely each pass — bills shrink when supply
+    // appears (looted, crafted, lying on the ground), so no infinite bow mills
     const ensureBill = (key, spec, want) => {
       let bill = world.bills.find(b => b.key === key);
       if (!bill && want > 0) { bill = { id: U.uid(), key, ...spec, count: 0 }; world.bills.push(bill); }
-      if (bill) bill.count = Math.max(bill.count, want);
+      if (bill) bill.count = Math.max(0, want);
     };
+    const groundWeapons = (k) => world.items.filter(s => s.kind === 'weaponItem' && !s.carried && s.meta && s.meta.key === k).length;
+    const groundApparel = (k) => world.items.filter(s => s.kind === 'apparelItem' && !s.carried && s.meta && s.meta.key === k).length;
     // stone blocks from chunks
     if (world.techsDone.includes('stonecutting') && Things.count(world, 'chunk') >= 1 && Things.count(world, 'stone') < 60) {
       ensureBill('stonecut', { bench: 'stonecutting', skill: 'Crafting', wk: 14, cost: { chunk: 1 }, out: 'stone', outQty: 4 }, 6);
@@ -492,17 +536,20 @@ const Overseer = {
         }
       }
     }
-    // weapons: bows for the unarmed, blades once smithing
+    // weapons: bows for the unarmed, blades once smithing — but a bow lying in
+    // the stockpile counts as a bow; the mill stops when supply meets demand
     const unarmed = colonists.filter(p => !p.weapon && p.canFight(world)).length;
-    if (unarmed > 0 && Things.count(world, 'wood') >= 12) {
-      ensureBill('bow', { bench: 'stonecutting', skill: 'Crafting', wk: 18, cost: { wood: 12 }, out: 'weapon', outKey: 'bow' }, Math.min(unarmed, 2));
+    const groundArms = world.items.filter(s => s.kind === 'weaponItem' && !s.carried).length;
+    if (Things.count(world, 'wood') >= 12) {
+      ensureBill('bow', { bench: 'stonecutting', skill: 'Crafting', wk: 18, cost: { wood: 12 }, out: 'weapon', outKey: 'bow' }, U.clamp(unarmed - groundArms, 0, 2));
     }
     if (world.techsDone.includes('smithing') && Things.count(world, 'steel') >= 8) {
       const meleeless = colonists.filter(p => p.canFight(world) && (!p.weapon || p.weapon === 'club' || p.weapon === 'knife')).length;
-      if (meleeless > 1) ensureBill('machete', { bench: 'smithing', skill: 'Crafting', wk: 26, cost: { steel: 8 }, out: 'weapon', outKey: 'machete', tech: 'smithing' }, 1);
+      ensureBill('machete', { bench: 'smithing', skill: 'Crafting', wk: 26, cost: { steel: 8 }, out: 'weapon', outKey: 'machete', tech: 'smithing' }, U.clamp(meleeless - 1 - groundWeapons('machete'), 0, 1));
     }
     if (world.techsDone.includes('gunsmithing') && Things.count(world, 'steel') >= 28) {
-      ensureBill('rifle', { bench: 'smithing', skill: 'Crafting', wk: 44, cost: { steel: 28, wood: 6 }, out: 'weapon', outKey: 'rifle', tech: 'gunsmithing' }, 1);
+      const gunless = colonists.filter(p => p.canFight(world) && (!p.weapon || WEAPONS[p.weapon].melee)).length;
+      ensureBill('rifle', { bench: 'smithing', skill: 'Crafting', wk: 44, cost: { steel: 28, wood: 6 }, out: 'weapon', outKey: 'rifle', tech: 'gunsmithing' }, U.clamp(gunless - groundWeapons('rifle'), 0, 1));
     }
     // art
     if (world.techsDone.includes('artistry') && Things.count(world, 'stone') >= 10 && world.plan.decorSpots.length) {
@@ -515,7 +562,7 @@ const Overseer = {
     // flak vests for the unarmored line
     if (world.techsDone.includes('smithing') && Things.count(world, 'steel') >= 25 && Things.count(world, 'cloth') >= 6) {
       const unarmored = colonists.filter(p => p.canFight(world) && p.apparel !== 'flak' && p.apparel !== 'parka').length;
-      if (unarmored > 1) ensureBill('flak', { bench: 'smithing', skill: 'Crafting', wk: 34, cost: { steel: 25, cloth: 6 }, out: 'apparel', outKey: 'flak', tech: 'smithing' }, 1);
+      ensureBill('flak', { bench: 'smithing', skill: 'Crafting', wk: 34, cost: { steel: 25, cloth: 6 }, out: 'apparel', outKey: 'flak', tech: 'smithing' }, U.clamp(unarmored - 1 - groundApparel('flak'), 0, 1));
     }
     // peg legs for those the rim took a leg from
     if (world.techsDone.includes('smithing')) {
@@ -641,6 +688,7 @@ const Overseer = {
         continue;
       }
       if (doctors.includes(p.id)) roles.push('doctor');
+      roles.push('equip');
       roles.push('bury');
       if (wardens.includes(p.id)) roles.push('warden');
       if (cooks.includes(p.id)) { roles.push('cook'); roles.push('butcher'); }
@@ -753,6 +801,7 @@ const Overseer = {
       const tileKey = pl.x * 4096 + pl.y;
       if (seen.has(tileKey)) continue;
       seen.add(tileKey);
+      if (pl.dead) continue;
       const i = map.idx(pl.x, pl.y);
       if (pl.key === 'floorWood' || pl.key === 'floorStone') {
         if (map.floor[i] || map.bIdx[i]) continue;
@@ -794,17 +843,37 @@ const Overseer = {
 
   considerCaptures(world) {
     const colonists = world.pawns.filter(p => p.isColonist());
-    if (!colonists.length) return;
+    if (!colonists.length || colonists.length >= BAL.popSoftCap) return;
     const downedFoes = world.pawns.filter(q => (q.faction === 'pirate' || q.faction === 'tribe') && q.downed && !q.dead && !q.prisoner && !q.gone);
     if (!downedFoes.length) return;
     world.plan.prisonWanted = true;
-    const prisonBeds = world.buildings.filter(b => !b.blueprint && BUILDINGS[b.key].bed && b.prison);
+    let prisonBeds = world.buildings.filter(b => !b.blueprint && BUILDINGS[b.key].bed && b.prison);
+    // no cell yet? throw a pallet in a spare corner — the rim improvises
+    if (!prisonBeds.length && !world.buildings.some(b => b.blueprint && b.prison)) {
+      for (let r = 1; r < world.map.rooms.length && !prisonBeds.length; r++) {
+        const room = world.map.rooms[r];
+        if (!room || !room.indoor || room.kind === 'kitchen') continue;
+        const spot = room.tiles.map(i => ({ x: i % world.map.w, y: Math.floor(i / world.map.w) }))
+          .find(t => !world.map.bIdx[world.map.idx(t.x, t.y)] && world.map.standable(t.x, t.y, world));
+        if (spot) {
+          const bp = Things.addBlueprint(world, 'bedroll', spot.x, spot.y);
+          if (bp) {
+            bp.prison = true;
+            world.plan.placed.push({ key: 'bedroll', x: spot.x, y: spot.y, prison: true });
+            Chron.log(world, `A corner is being cleared for a makeshift cell. Waste not — even enemies can become neighbors, given bread and time.`, { icon: '⛓️', tone: 'neutral' });
+          }
+          break;
+        }
+      }
+    }
     const prisoners = world.pawns.filter(q => q.prisoner && !q.dead);
     for (const foe of downedFoes) {
-      if (prisoners.length >= prisonBeds.length) break;
-      const bed = prisonBeds.find(b => !world.pawns.some(q => q.prisoner && q.inBedId === b.id));
+      // hold the wounded where they fell while a cell is arranged
+      foe.captureHold = world.t + BAL.MIN_PER_DAY * 1.5;
+      if (prisoners.length >= prisonBeds.length) continue;
+      const bed = prisonBeds.find(b => !world.pawns.some(q => q.prisoner && q.inBedId === b.id) && !world.captureQueue.some(cq => cq.bedId === b.id));
       if (!bed) break;
-      if (colonists.length >= BAL.popSoftCap) break;
+      if (world.captureQueue.some(cq => cq.pawnId === foe.id)) continue;
       world.captureQueue.push({ pawnId: foe.id, bedId: bed.id });
       prisoners.push(foe);
     }

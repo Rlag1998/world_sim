@@ -251,8 +251,9 @@ const UIx = {
         <p class="mem-sub">${world.day} days · ${world.year0 + 1}${world.year0 ? ' years' : 'st year'} · ${world.stats.raidsSurvived} raids survived · ${graves.length} graves</p>
         <div class="mem-list">${memories || '<div class="mem-line">A short story, but theirs.</div>'}</div>
         <p class="mem-sub">A new chronicle begins shortly…</p>`;
-      // fresh story after a slow, respectful pause
-      setTimeout(() => { Main.newChronicle(); }, 30000);
+      // fresh story after a slow, respectful pause — cancellable if the viewer
+      // starts one themselves (never bulldoze a world the user already began)
+      Main.memorialTimer = setTimeout(() => { Main.memorialTimer = null; Main.newChronicle(); }, 30000);
     }
   },
 };

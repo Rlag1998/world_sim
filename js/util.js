@@ -3,9 +3,10 @@
 
 class RNG {
   constructor(seed) { this.s = (seed >>> 0) || 1; }
-  // mulberry32
+  // mulberry32 (state clamped to uint32 so precision never drifts on long runs)
   r() {
-    let t = (this.s += 0x6D2B79F5);
+    this.s = (this.s + 0x6D2B79F5) >>> 0;
+    let t = this.s;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -85,6 +86,8 @@ const U = {
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   },
   plural: (n, word, pl) => n === 1 ? word : (pl || word + 's'),
+  // "the Crimson Fangs" but never "the The Crimson Fangs"
+  the: (name) => /^the /i.test(name) ? name : 'the ' + name,
   sgn: (v) => v > 0 ? '+' + v : '' + v,
   // Deterministic tiny hash for pair-compatibility etc.
   hash2(a, b) {

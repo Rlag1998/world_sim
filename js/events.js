@@ -50,9 +50,10 @@ const GameEvents = {
       members.push(p);
     }
     if (!members.length) return null;
-    // leader: the named antagonist rides along on bigger or grudge raids
+    // leader: the named antagonist rides along from the second raid on —
+    // a nemesis you never meet is no nemesis at all
     let leaderName = null, leader = null;
-    const wantLeader = fac.leaderAlive && (opts.vendetta || members.length >= 5 || fac.grudge >= 2);
+    const wantLeader = fac.leaderAlive && (opts.vendetta || members.length >= 4 || fac.grudge >= 1 || fac.raidsLed >= 1);
     if (wantLeader) {
       leader = members[0];
       leader.name = fac.leaderPawnName;
@@ -89,8 +90,8 @@ const GameEvents = {
     if (raid.leaderId) {
       if (leader && leader.dead) {
         fac.leaderAlive = false;
-        Chron.log(world, `${raid.leaderName} lies dead in the dirt of ${world.colonyName}. The ${fac.name} will not soon find another like ${leader.him}.`, { icon: ICONS.raid, tone: 'good', major: true });
-        Chron.remember(world, { kind: 'victory', text: `${raid.leaderName} of the ${fac.name} was slain`, pawns: [] });
+        Chron.log(world, `${raid.leaderName} lies dead in the dirt of ${world.colonyName}. ${U.cap(U.the(fac.name))} will not soon find another like ${leader.him}.`, { icon: ICONS.raid, tone: 'good', major: true });
+        Chron.remember(world, { kind: 'victory', text: `${raid.leaderName} of ${U.the(fac.name)} was slain`, pawns: [] });
         Chron.maybeChapter(world, 'nemesisDead', `The Fall of ${raid.leaderName}`);
         fac.grudge = 0;
         fac.rebuildAt = world.day + 20; // a successor rises later
@@ -105,6 +106,8 @@ const GameEvents = {
       if (deaths > 0) p.addThought(world, 'raidMauledUs');
       else p.addThought(world, 'raidRepelled');
     }
+    // every repelled raid deepens the grudge — the feud is the story
+    if (colonists.length > 0 && fac.leaderAlive) fac.grudge++;
     if (deaths === 0) {
       Chron.log(world, Chron.pick(world, [
         `The raid is broken. ${world.colonyName} holds. Tonight there will be shaky hands and bad jokes and maybe a little beer.`,
@@ -115,7 +118,7 @@ const GameEvents = {
     } else {
       Chron.log(world, `The raid is over. ${world.colonyName} paid in blood for its survival.`, { icon: ICONS.death, tone: 'bad', major: true });
     }
-    Chron.remember(world, { kind: 'raid', text: `${world.colonyName} survived a raid by the ${raid.factionName}`, pawns: [] });
+    Chron.remember(world, { kind: 'raid', text: `${world.colonyName} survived a raid by ${U.the(raid.factionName)}`, pawns: [] });
     world.stats.raidsSurvived++;
   },
 
@@ -492,7 +495,7 @@ const GameEvents = {
     const leader = `${fac.leaderTitle} ${fac.leaderPawnName.first}`;
     Chron.log(world, Chron.pick(world, [
       `An arrow thuds into the gate at dawn, a scrap of hide tied to the shaft: "${world.rng.pick(['You count your harvest. I count my dead. We will settle both.', 'Fatten up. We like it better that way.', 'The wall is tall. Graves are deep. — ' + leader])}" The sentries burn it, but everyone has already read it.`,
-      `A trader passes along a message from ${leader} of the ${fac.name}, delivered with theatrical regret: ${world.colonyName} is "owed a visit." The colony's answer, voted unanimously over dinner, is not printable in this chronicle.`,
+      `A trader passes along a message from ${leader} of ${U.the(fac.name)}, delivered with theatrical regret: ${world.colonyName} is "owed a visit." The colony's answer, voted unanimously over dinner, is not printable in this chronicle.`,
     ]), { icon: '🏴', tone: 'bad', major: true });
     if (world.rng.chance(0.5)) fac.grudge++;
     return true;
@@ -515,7 +518,9 @@ const GameEvents = {
     if (!a) { a = rng.pick(colonists); b = null; }
     const baby = Pawn.makeBaby(world, a, b);
     const edge = world.map.randomEdgeSpot(rng, world);
-    baby.x = edge.x; baby.y = edge.y;
+    // the chronicle says they carried the child home, so the child is home
+    baby.x = U.clamp(world.map.home.x + rng.ri(-2, 2), 1, world.map.w - 2);
+    baby.y = U.clamp(world.map.home.y + rng.ri(-2, 2), 1, world.map.h - 2);
     world.pawns.push(baby); world.byId[baby.id] = baby;
     baby.addStory(world, `Found as a foundling at the edge of ${world.colonyName}`);
     a.addStory(world, `Took in the foundling ${baby.name.first}`);

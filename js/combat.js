@@ -118,6 +118,11 @@ const Combat = {
       }
       if ((p.faction === 'pirate' || p.faction === 'tribe') && a.tame) out.push(a);
     }
+    // even raiders have codes (and the tank has taste): adults before children
+    if (p.faction === 'pirate' || p.faction === 'tribe') {
+      const adults = out.filter(t => t.thing !== 'pawn' || t.stage(world) === 'adult');
+      if (adults.length) return adults;
+    }
     return out;
   },
 
@@ -278,6 +283,7 @@ const Combat = {
   stepRaider(world, p, j) {
     const raid = world.raids.find(r => r.id === p.raidId);
     if (!raid) { p.fleeing = true; return; }
+    if (p.fleeDelayT && world.t >= p.fleeDelayT) { p.fleeing = true; p.fleeDelayT = null; return; }
     if (raid.state === 'approach') {
       const home = world.map.home;
       const r = Jobs.advance(world, p, U.clamp(home.x + (p.id % 7) - 3, 1, world.map.w - 2), U.clamp(home.y + (p.id % 5) - 2, 1, world.map.h - 2), { hostile: true });
@@ -457,15 +463,35 @@ const Combat = {
         const leader = world.byId[raid.leaderId];
         if (leader && (leader.dead || leader.downed) && raid.leaderAlive !== false) {
           raid.leaderAlive = false;
-          Chron.log(world, `${raid.leaderName} is down — the ${raid.factionName} falter!`, { icon: ICONS.raid, tone: 'good', major: true });
+          Chron.log(world, `${raid.leaderName} is down — ${U.the(raid.factionName)} falter!`, { icon: ICONS.raid, tone: 'good', major: true });
         }
         if (casualties >= Math.max(1, moraleLimit)) {
           raid.broken = true;
-          for (const q of members) if (!q.downed) q.fleeing = true;
+          for (const q of members) {
+            if (q.downed) continue;
+            // pride kills captains: the named leader covers the retreat, and
+            // sometimes that costs everything — the nemesis arc needs an ending
+            if (q.isLeader && world.rng.chance(0.55)) { q.fleeDelayT = world.t + 60; continue; }
+            q.fleeing = true;
+          }
           Chron.log(world, Chron.pick(world, [
             `The raiders' nerve broke — they are running for the ${world.rng.pick(['hills', 'treeline', 'wastes'])}!`,
-            `A ragged cry went up, and the ${raid.factionName} turned tail.`,
+            `A ragged cry went up, and ${U.the(raid.factionName)} turned tail.`,
           ]), { icon: ICONS.raid, tone: 'good', major: true });
+          const stayed = members.find(q => q.fleeDelayT && !q.downed);
+          if (stayed) Chron.log(world, `${raid.leaderName} did not run. ${U.cap(stayed.he)} stood over the retreat, firing, daring ${world.colonyName} to finish it.`, { icon: ICONS.raid, tone: 'neutral', major: true });
+        }
+      }
+      // victory achieved: raiders loot and leave rather than lingering over the bleeding
+      if (!raid.broken && raid.state === 'attack') {
+        const standing = world.pawns.filter(q => q.isColonist() && !q.downed).length;
+        if (standing === 0) {
+          raid.wonAt = raid.wonAt || world.t;
+          if (world.t - raid.wonAt > 90) {
+            raid.broken = true;
+            for (const q of members) if (!q.downed) q.fleeing = true;
+            Chron.log(world, `The raiders took what they wanted and left the rest to the crows. In the dirt behind them, not everyone has stopped breathing.`, { icon: ICONS.raid, tone: 'bad', major: true });
+          }
         }
       }
       // timeout: raids don't besiege forever

@@ -39,6 +39,7 @@ const Social = {
     if (a.stage(world) !== 'adult' || b.stage(world) !== 'adult') return false;
     if (a.family.mo === b.id || a.family.fa === b.id || a.family.kids.includes(b.id)) return false;
     if (b.family.mo && b.family.mo === a.family.mo) return false;
+    if (b.family.fa && b.family.fa === a.family.fa) return false;
     if (a.prisoner !== b.prisoner) return false;
     // orientation via stable hash: 0..1
     const orient = (p) => U.hash2(p.id, 777);
@@ -138,7 +139,9 @@ const Social = {
         } else {
           a.addThought(world, 'rebuffed', { who: b.id });
           Social.changeOp(b, a, -3);
-          if (rng.chance(0.3)) Chron.log(world, `${a.label()} tried ${a.his} luck with ${b.label()}, and was gently turned down.`, { icon: '💔', tone: 'neutral' });
+          if (rng.chance(0.3) && Chron.gate(world, 'rebuff', 1.2) === 'log') {
+            Chron.log(world, `${a.label()} tried ${a.his} luck with ${b.label()}, and was gently turned down.`, { icon: '💔', tone: 'neutral' });
+          }
           return { kind: 'rebuff' };
         }
       }
@@ -200,6 +203,7 @@ const Social = {
   },
 
   divorce(world, a, b) {
+    if (a.spouseId !== b.id && b.spouseId !== a.id) return; // already parted; no double ceremony of grief
     if (a.spouseId === b.id) a.spouseId = null;
     if (b.spouseId === a.id) b.spouseId = null;
     a.loverId = null; b.loverId = null;
@@ -261,7 +265,12 @@ const Social = {
       if (world.day >= wq.day) {
         world.weddingQueue.splice(i, 1);
         const a = world.byId[wq.a], b = world.byId[wq.b];
-        if (a && b && !a.dead && !b.dead && !a.spouseId && !b.spouseId) Social.startWedding(world, a, b);
+        // still alive, still single, still each other's — engagements can break
+        if (a && b && !a.dead && !b.dead && !a.spouseId && !b.spouseId && a.loverId === b.id && b.loverId === a.id) {
+          Social.startWedding(world, a, b);
+        } else if (a && b && !a.dead && !b.dead) {
+          Chron.log(world, `The wedding of ${a.label()} and ${b.label()} is quietly off. The flowers went to the graves instead.`, { icon: '💔', tone: 'bad' });
+        }
       }
     }
   },
@@ -341,8 +350,8 @@ const Social = {
     const g = { id: U.uid(), type, x: spot.x, y: spot.y, start: world.t, end: world.t + durMin, guests: guests.map(p => p.id), meta: meta || {}, fx: 0 };
     world.gatherings.push(g);
     for (const p of guests) {
-      if (p.job && ['sleep', 'patient', 'tendPawn', 'firefight'].includes(p.job.type)) continue;
-      p.job = null; // they'll pick up the attend job
+      if (p.job && ['sleep', 'patient', 'tend', 'rescue', 'capture', 'firefight'].includes(p.job.type)) continue;
+      Jobs.endJob(world, p); // releases reservations and drops carried goods properly
     }
     return g;
   },
@@ -358,6 +367,11 @@ const Social = {
   },
 
   marry(world, a, b) {
+    // sever any dangling third-party lover back-pointers before the vows
+    for (const p of [a, b]) {
+      const old = p.loverId && p.loverId !== a.id && p.loverId !== b.id ? world.byId[p.loverId] : null;
+      if (old && old.loverId === p.id) old.loverId = null;
+    }
     a.spouseId = b.id; b.spouseId = a.id;
     a.loverId = b.id; b.loverId = a.id;
     a.addThought(world, 'gotMarried'); b.addThought(world, 'gotMarried');
@@ -449,7 +463,7 @@ const Social = {
     if (guests.length < 3) return;
     Social.startGathering(world, 'tales', { x: fire.x, y: fire.y }, guests, 70, {});
     // most fires burn unrecorded; the chronicle notes only the memorable nights
-    if (world.rng.chance(0.4)) {
+    if (Chron.gate(world, 'fireside', 1.5) === 'log' && world.rng.chance(0.4)) {
       const bardP = guests.find(p => p.hasTrait('bard'));
       Chron.log(world, Chron.pick(world, [
         `${bardP ? bardP.label() : world.rng.pick(guests).label()} gathered everyone by the fire and told ${bardP ? 'the old stories' : 'a story that grew with every telling'} — ${world.rng.pick(['the ship that fell', 'the winter of wolves', 'how the colony got its name', 'a love story, badly disguised', 'ghosts, obviously', 'the one about the muffalo and the door'])}.`,

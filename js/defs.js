@@ -310,7 +310,7 @@ const BAL = {
   breakMinor: 32, breakMajor: 19, breakExtreme: 7,
   breakCheckPerHour: 0.24,   // chance per hour below threshold
 
-  childAgeMult: 6,           // children age faster (frontier metabolism)
+  childAgeMult: 8,           // children age faster (frontier metabolism)
   adultAt: 14, workAt: 7, oldAge: 62,
 
   cropsPerColonist: 20,

@@ -41,6 +41,18 @@ const Storyteller = {
   tickHourly(world) {
     const st = world.st;
     if (world.threat) { st.lastEventT = world.t; return; } // don't stack events on a live battle
+    // triage override: when nobody is left standing, the rim sends someone — soon
+    const colonists = world.pawns.filter(p => p.isColonist());
+    if (colonists.length && colonists.every(p => p.downed)) {
+      if ((st.rescueRolledAt || 0) < world.t - 300 && world.rng.chance(0.35)) {
+        st.rescueRolledAt = world.t;
+        st.lastEventT = world.t;
+        if (world.gonePawns.length && world.rng.chance(0.4)) GameEvents.returnee(world);
+        else GameEvents.wandererJoins(world);
+        return;
+      }
+      return; // and certainly no fresh disasters
+    }
     if (world.t - st.lastEventT < st.nextGap) return;
     const state = Storyteller.colonyState(world);
     if (!state.pop) return;

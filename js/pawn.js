@@ -29,7 +29,8 @@ class Pawn {
     p.faction = opts.faction || 'colony';
     p.gender = opts.gender || (rng.chance(0.06) ? 'nb' : rng.chance(0.5) ? 'm' : 'f');
     p.name = opts.name || Names.pawnName(rng, p.gender);
-    const years = opts.age != null ? opts.age : rng.ri(19, 52);
+    // some arrive already grey — elders make deathbed arcs and grandparents possible
+    const years = opts.age != null ? opts.age : (rng.chance(0.18) ? rng.ri(55, 68) : rng.ri(19, 52));
     p.ageDays = Math.round(years * world.daysPerYear);
     p.skin = rng.ri(0, SKIN_TONES.length - 1);
     p.hair = { color: rng.ri(0, HAIR_COLORS.length - 1), style: rng.ri(0, 4) };
@@ -283,7 +284,9 @@ class Pawn {
 
   // ---- health ------------------------------------------------------------
   pickHitPart(world, kind) {
-    const roll = world.rng.r() * 89;
+    let total = 0;
+    for (const k of PART_KEYS) total += BODY_PARTS[k].hitW;
+    const roll = world.rng.r() * total;
     let acc = 0;
     for (const k of PART_KEYS) {
       acc += BODY_PARTS[k].hitW;
@@ -380,8 +383,15 @@ class Pawn {
     for (let i = this.injuries.length - 1; i >= 0; i--) {
       const inj = this.injuries[i];
       if (!inj.tended) {
-        inj.bleed *= 0.955;                 // clotting
+        // the downed curl around their wounds: pressure, cloth, stubbornness
+        inj.bleed *= this.downed ? 0.88 : 0.955;
         if (inj.sev < 3.5) inj.bleed = 0;   // small wounds close on their own
+        if (this.downed && world.t - inj.t > 130 && this.capConscious() > 0.22) {
+          inj.tended = true; inj.tendQ = 0.22; // packed their own wound, badly but enough
+          if (this.isColonist() && world.rng.chance(0.25)) {
+            Chron.log(world, `${this.label()}, flat in the dirt, packed ${this.his} own wounds with ${world.rng.pick(['torn cloth', 'moss and spit', 'a sleeve and swearing'])}. Not dead yet.`, { icon: '🩸', tone: 'neutral' });
+          }
+        }
       }
       const healRate = inj.tended ? 0.5 + inj.tendQ * 0.8 : (inj.sev <= 4 ? 0.25 : 0.06);
       inj.sev -= healRate / 10;
@@ -409,10 +419,10 @@ class Pawn {
       d.tendQ = Math.max(0, d.tendQ - 0.03); // tending wears off
       if (d.imm >= 1) {
         this.diseases.splice(i, 1);
-        if (this.isColonist()) Chron.log(world, `${this.label()} has recovered from ${d.kind === 'infection' ? 'the infection' : 'the ' + d.kind}.`, { icon: ICONS.heal, tone: 'good' });
+        if (this.isColonist()) Chron.log(world, `${this.label()} has recovered from ${({flu:'the flu',plague:'the plague',infection:'the infection',gutworms:'the gut worms',foodPoison:'the food poisoning'})[d.kind] || d.kind}.`, { icon: ICONS.heal, tone: 'good' });
         continue;
       }
-      if (d.sev >= 1 && d.kind !== 'gutworms') { this.die(world, `succumbed to ${d.kind === 'infection' ? 'infection' : 'the ' + d.kind}`); return; }
+      if (d.sev >= 1 && d.kind !== 'gutworms' && d.kind !== 'foodPoison') { this.die(world, `succumbed to ${({flu:'the flu',plague:'the plague',infection:'infection'})[d.kind] || d.kind}`); return; }
     }
     // starvation (visitors and raiders carry their own rations off-screen)
     if (this.needs.food <= 0 && (this.faction === 'colony' || this.prisoner)) {
@@ -437,7 +447,7 @@ class Pawn {
     if (this.diseases.some(d => d.kind === kind)) return;
     this.diseases.push({ kind, sev: 0.08, imm: 0, tendQ: 0 });
     if (this.isColonist()) {
-      Chron.log(world, `${this.label()} has come down with ${kind === 'infection' ? 'an infection' : kind === 'gutworms' ? 'gut worms' : 'the ' + kind}.`, { icon: ICONS.sick, tone: 'bad', major: kind === 'plague', at: this });
+      Chron.log(world, `${this.label()} has come down with ${({flu:'the flu',plague:'the plague',infection:'an infection',gutworms:'gut worms',foodPoison:'food poisoning'})[kind] || kind}.`, { icon: ICONS.sick, tone: 'bad', major: kind === 'plague', at: this });
     }
   }
 

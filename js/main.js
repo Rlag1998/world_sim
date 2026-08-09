@@ -41,16 +41,26 @@ const Main = {
     }, 1000);
   },
 
+  // A full cross-module reset: every module that watched the old world lets go.
   newChronicle() {
+    if (this.memorialTimer) { clearTimeout(this.memorialTimer); this.memorialTimer = null; }
     try { localStorage.removeItem('rimtale.save'); } catch (e) { /* private mode */ }
     this.world = Sim.newWorld();
     UIx.lastChronIx = 0;
     UIx.lastRosterKey = '';
     UIx.chronList.innerHTML = '';
-    Renderer.selectedId = null; Renderer.followId = null;
+    UIx.sagaMode = false;
+    document.getElementById('chron-saga').classList.remove('on');
+    UIx.portraits.clear();
+    Renderer.selectedId = null; Renderer.followId = null; Renderer.idleTargetId = null;
+    Renderer.interests = []; Renderer.caption = null; Renderer.cine = null; Renderer.shake = 0;
     Renderer.terrainCache = null;
+    Renderer.cam.x = this.world.map.home.x; Renderer.cam.y = this.world.map.home.y;
     Renderer.cam.tx = this.world.map.home.x; Renderer.cam.ty = this.world.map.home.y;
+    Renderer.manualUntil = 0;
+    if (Ambience.ctx) { Ambience.wasThreat = false; Ambience.lastThunderFx = 0; }
     document.getElementById('memorial').style.display = 'none';
+    this.lastSaveDay = this.world.day;
   },
 
   autosave() {

@@ -385,6 +385,11 @@ const Sim = {
   removeFromWorld(world, p, keepDead) {
     const ix = world.pawns.indexOf(p);
     if (ix >= 0) world.pawns.splice(ix, 1);
+    // the departed release their beds (the marriage, poignantly, stays)
+    for (const b of world.buildings) {
+      if (b.ownerId === p.id) b.ownerId = null;
+      if (b.owner2Id === p.id) b.owner2Id = null;
+    }
     for (const g of world.gatherings) {
       const gi = g.guests.indexOf(p.id);
       if (gi >= 0) g.guests.splice(gi, 1);
@@ -452,10 +457,13 @@ const Sim = {
       tantrum: `${p.label()} is smashing things! ${U.cap(Chron.quip(world, p) || 'the anger has to go somewhere')}${whyTxt}.`,
       berserk: `${p.label()} has snapped — berserk, swinging at anyone in reach${whyTxt}!`,
       fire: `${p.label()}'s eyes have gone bright and wrong. ${U.cap(p.he)} is lighting fires${whyTxt}!`,
-      leave: `${p.label()} is packing to leave. ${U.cap(p.he)} says the colony was a mistake${whyTxt}.`,
+      leave: `${p.label()} is packing to leave. ${U.cap(p.he)} ${p.gender === 'nb' ? 'say' : 'says'} the colony was a mistake${whyTxt}.`,
     }[kind];
-    // minor wobbles only sometimes make the chronicle; major breaks always do
-    if (sev !== 'minor' || world.rng.chance(0.45)) {
+    // minor wobbles only sometimes make the chronicle; major breaks always do —
+    // but nobody's breakdown gets narrated twice in the same day
+    const recentlyLogged = world.t - (p.lastBreakLogT || -1e9) < 1500;
+    if (sev !== 'minor' ? !recentlyLogged || sev === 'extreme' : (world.rng.chance(0.45) && !recentlyLogged)) {
+      p.lastBreakLogT = world.t;
       Chron.log(world, prose, { icon: ICONS.break, tone: 'bad', major: sev !== 'minor', at: p });
     }
     if (sev !== 'minor') Renderer.focus(world, p.x, p.y, 6, `${p.label()} — mental break!`);
@@ -517,9 +525,12 @@ const Sim = {
         Overseer.assignRolesDaily(world);
       }
     }
-    // downed hostiles left on the field crawl away eventually
+    // fresh capture opportunities outside battle aftermath
+    if (!world.threat && world.t % 180 === 0) Overseer.considerCaptures(world);
+    // downed hostiles left on the field crawl away eventually — unless held for capture
     for (const q of [...world.pawns]) {
       if ((q.faction === 'pirate' || q.faction === 'tribe') && q.downed && !q.prisoner && !q.dead) {
+        if ((q.captureHold || 0) > world.t) continue;
         if (q.capConscious() > 0.42 && q.blood > 0.6) {
           q.downed = false; q.fleeing = true;
           if (world.rng.chance(0.4)) Chron.log(world, `A wounded raider dragged ${q.him}self up and limped for the treeline. Nobody wasted a bullet.`, { icon: '🩸', tone: 'neutral' });
@@ -611,7 +622,9 @@ const Sim = {
       Storyteller.tickDaily(world);
       Overseer.assignRolesDaily(world);
       const lost = Things.tickRotDaily(world);
-      if (lost > 20) Chron.log(world, `${lost} units of food spoiled in the heat. The cooks are furious at everyone and no one.`, { icon: '🤢', tone: 'bad' });
+      if (lost > 20 && Chron.gate(world, 'spoil', 2) === 'log') Chron.log(world, `${lost} units of food spoiled in the heat. The cooks are furious at everyone and no one.`, { icon: '🤢', tone: 'bad' });
+      // prune expired tabu entries so long worlds don't hoard dead keys
+      for (const k of Object.keys(world.tabuMap)) if (world.tabuMap[k] <= world.t) delete world.tabuMap[k];
       // fuel for the fires
       let lit = world.buildings.filter(b => !b.blueprint && BUILDINGS[b.key].fire && b.lit).length;
       if (lit > 0) {
@@ -634,7 +647,7 @@ const Sim = {
           fac.leaderAlive = true;
           fac.leaderPawnName = Names.pawnName(world.rng, world.rng.chance(0.5) ? 'm' : 'f');
           fac.raidsLed = 0;
-          Chron.log(world, `Word from a passing trader: the ${fac.name} have a new ${fac.leaderTitle.toLowerCase()} — ${fac.leaderTitle} ${fac.leaderPawnName.first}. May they be wiser than the last. (They won't be.)`, { icon: '🏴', tone: 'neutral' });
+          Chron.log(world, `Word from a passing trader: ${U.the(fac.name)} have a new ${fac.leaderTitle.toLowerCase()} — ${fac.leaderTitle} ${fac.leaderPawnName.first}. May they be wiser than the last. (They won't be.)`, { icon: '🏴', tone: 'neutral' });
           fac.rebuildAt = 0;
         }
       }
@@ -653,9 +666,10 @@ const Sim = {
     if (!world.gameOverState) {
       const colonists = world.pawns.filter(p => p.isColonist());
       if (colonists.length === 0) Sim.gameOver(world);
-      else if (!world.strangerCame && colonists.every(p => p.downed) && colonists.length >= 1 && world.t % 30 === 0) {
-        // the oldest mercy on the rim: when all hope is down, a stranger walks out of the dust
-        world.strangerCame = true;
+      else if ((world.strangerCooldownUntil || 0) <= world.day && !world.threat && colonists.every(p => p.downed) && colonists.length >= 1 && world.t % 30 === 0) {
+        // the oldest mercy on the rim: when all hope is down, a stranger walks out of the dust.
+        // Not once per world — but rare enough that each visit becomes legend.
+        world.strangerCooldownUntil = world.day + 30;
         const edge = world.map.randomEdgeSpot(world.rng, world);
         const p = Pawn.make(world, { faction: 'colony', x: edge.x, y: edge.y, weapon: 'revolver' });
         p.skills.Medicine.lv = Math.max(p.skills.Medicine.lv, 7);
@@ -706,7 +720,7 @@ const Sim = {
       map: {
         w: world.map.w, h: world.map.h, home: world.map.home, vault: world.map.vault, biome: world.map.biome,
         terr: Array.from(world.map.terr), rock: Array.from(world.map.rock), ore: Array.from(world.map.ore),
-        floor: Array.from(world.map.floor), filth: Array.from(world.map.filth),
+        floor: Array.from(world.map.floor), filth: Array.from(world.map.filth), fire: Array.from(world.map.fireG),
         plants: world.map.plantG.map(pl => pl ? { k: pl.kind, g: Math.round(pl.growth * 100) / 100, i: pl.i, s: pl.sown ? 1 : 0 } : 0),
       },
     };
@@ -743,6 +757,7 @@ const Sim = {
     map.biome = d.map.biome; map.home = d.map.home; map.vault = d.map.vault;
     map.terr.set(d.map.terr); map.rock.set(d.map.rock); map.ore.set(d.map.ore);
     map.floor.set(d.map.floor); map.filth.set(d.map.filth);
+    if (d.map.fire) map.fireG.set(d.map.fire); // burning worlds stay burning
     for (let i = 0; i < d.map.plants.length; i++) {
       const pl = d.map.plants[i];
       map.plantG[i] = pl ? { kind: pl.k, growth: pl.g, i: pl.i, sown: !!pl.s } : null;
@@ -759,7 +774,17 @@ const Sim = {
     for (const pd of d.pawns) { const p = revive(pd); world.pawns.push(p); world.byId[p.id] = p; }
     for (const pd of d.gonePawns || []) { const p = revive(pd); world.gonePawns.push(p); world.byId[p.id] = p; }
     for (const ad of d.animals) { const a = Object.assign(new Animal(), ad); a.path = null; world.animals.push(a); world.byId[a.id] = a; maxId = Math.max(maxId, a.id); }
-    for (const s of world.items) { world.byId[s.id] = s; maxId = Math.max(maxId, s.id); const i = map.idx(s.x, s.y); if (!s.carried) map.itemG[i] = s.id; }
+    for (const s of world.items) {
+      world.byId[s.id] = s; maxId = Math.max(maxId, s.id);
+      // ghosts from interrupted hauls in older saves come back to earth
+      if (s.carried) {
+        s.carried = false;
+        const spot = map.findSpotNear(s.x, s.y, 8, (x, y) => !map.rock[map.idx(x, y)] && map.terr[map.idx(x, y)] !== TERR.WATER && !map.itemG[map.idx(x, y)]);
+        if (spot) { s.x = spot.x; s.y = spot.y; }
+      }
+      const i = map.idx(s.x, s.y);
+      if (!map.itemG[i]) map.itemG[i] = s.id;
+    }
     for (const b of world.buildings) { world.byId[b.id] = b; maxId = Math.max(maxId, b.id); map.bIdx[map.idx(b.x, b.y)] = b.id; }
     U.setUidFloor(maxId + 1);
     // stray raiders from an interrupted battle just leave

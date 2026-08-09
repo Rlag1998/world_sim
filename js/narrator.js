@@ -54,6 +54,20 @@ const Chron = {
     return h;
   },
 
+  // Novelty gate for low-stakes recurring beats: a template key may log once
+  // per cooldown; heavy repetition earns a single summary line, then silence.
+  gate(world, tkey, coolDays) {
+    const g = world.chron.tpl || (world.chron.tpl = {});
+    const rec = g[tkey] || (g[tkey] = { lastT: -1e9, n: 0 });
+    if (world.t - rec.lastT >= coolDays * BAL.MIN_PER_DAY) {
+      rec.lastT = world.t; rec.n = 0;
+      return 'log';
+    }
+    rec.n++;
+    if (rec.n === 8) return 'summary'; // one wry acknowledgement of the rut
+    return 'skip';
+  },
+
   remember(world, mem) {
     mem.day = world.day;
     world.chron.memories.push(mem);
@@ -136,7 +150,15 @@ const Chron = {
     const rng = world.rng;
     const q = Chron.quip(world, p);
     const name = p.full();
-    const age = p.ageYears(world);
+    const ageN = p.ageYears(world);
+    const age = ageN < 1 ? 'not yet a year old' : ageN < 3 ? `only ${ageN}` : ageN;
+    // the newly arrived get honest words, not borrowed heroism
+    if (world.day - p.joinedDay < 3 && p.stats.raidsFought === 0 && p.stats.harvests === 0) {
+      return Chron.pick(world, [
+        `${name} died almost as soon as ${p.he} arrived — ${cause}. The rim gives and takes in the same breath. ${U.cap(p.he)} will be buried as one of ours anyway.`,
+        `The colony barely learned ${name}'s name before losing it — ${cause}. A short chapter; the grave gets the same care as any other.`,
+      ]);
+    }
     const violent = /shot|wound|bled|beast|fists|blade|raid/.test(cause + (srcLabel || ''));
     const templates = violent ? [
       `${name} ${cause}${srcLabel ? ` — ${srcLabel}` : ''}. ${U.cap(p.he)} ${p.was} ${age}. ${rng.pick(['The ground drank; the work went on; the grief waited politely for nightfall.', 'Someone closed ' + p.his + ' eyes. Someone else picked up ' + p.his + ' gun.', 'The colony is smaller tonight, in every way a colony can be.'])}`,

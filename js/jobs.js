@@ -16,13 +16,39 @@ const Jobs = {
 
   markTabu(world, key, ticks) { if (key) world.tabuMap[key] = world.t + (ticks || 240); },
 
+  // Anything the pawn was physically holding must return to the world when the
+  // job ends — otherwise interrupted haulers destroy goods and carried corpses
+  // haunt the colony as unburiable ghosts.
+  releaseHands(world, p) {
+    if (p.carry) {
+      Things.drop(world, Math.round(p.x), Math.round(p.y), p.carry.kind, p.carry.qty, p.carry.meta);
+      p.carry = null;
+    }
+    const j = p.job;
+    if (j && j.carrying && j.corpseId) {
+      const c = world.byId[j.corpseId];
+      if (c && c.carried) {
+        c.carried = false;
+        const spot = world.map.findSpotNear(Math.round(p.x), Math.round(p.y), 6, (x, y) => {
+          const i = world.map.idx(x, y);
+          return !world.map.rock[i] && world.map.terr[i] !== TERR.WATER && !world.map.itemG[i];
+        });
+        if (spot) { c.x = spot.x; c.y = spot.y; }
+        else { c.x = Math.round(p.x); c.y = Math.round(p.y); }
+        world.map.itemG[world.map.idx(c.x, c.y)] = c.id;
+      }
+    }
+  },
+
   endJob(world, p) {
     if (p.job && p.job.resKey) Jobs.free(world, p.job.resKey);
+    Jobs.releaseHands(world, p);
     p.job = null; p.path = null;
   },
 
   setJob(world, p, job) {
     if (p.job && p.job.resKey) Jobs.free(world, p.job.resKey);
+    Jobs.releaseHands(world, p);
     p.job = job;
     p.path = null;
     if (job && job.resKey) Jobs.reserve(world, job.resKey, p);
@@ -129,8 +155,9 @@ const Jobs = {
       if (urgent) { Jobs.setJob(world, p, urgent); return; }
     }
 
-    // Patient: seriously hurt colonists take to bed
-    if ((p.needsTending() && (p.pain > 0.25 || p.diseases.length)) || p.blood < 0.75) {
+    // Patient: seriously hurt colonists take to bed — but eat FIRST; nobody
+    // convalesces themselves into a starvation grave beside a full larder
+    if (p.needs.food >= 0.25 && ((p.needsTending() && (p.pain > 0.25 || p.diseases.length)) || p.blood < 0.75)) {
       const bed = Jobs.findBedFor(world, p, true);
       if (bed && !Jobs.taken(world, 'bed:' + bed.id, p)) {
         Jobs.setJob(world, p, { type: 'patient', bedId: bed.id, tx: bed.x, ty: bed.y, resKey: 'bed:' + bed.id });
@@ -256,8 +283,8 @@ const Jobs = {
     if (world.isNight) opts.push({ w: 2, j: { type: 'stargaze' } });
     const pet = world.animals.find(a => a.tame && !a.dead);
     if (pet) opts.push({ w: 2, j: { type: 'playPet', petId: pet.id } });
-    // visit a grave of someone missed
-    if (world.rng.chance(0.25)) {
+    // visit a grave of someone missed — but mourning is an occasional ritual, not a career
+    if (world.rng.chance(0.25) && world.t - (p.lastGraveVisitT || -1e9) > 2 * BAL.MIN_PER_DAY) {
       const grave = world.buildings.find(b => !b.blueprint && BUILDINGS[b.key].grave && b.meta && b.meta.occupant);
       if (grave) opts.push({ w: 1, j: { type: 'visitGrave', tx: grave.x, ty: grave.y, graveId: grave.id } });
     }
@@ -289,12 +316,14 @@ const Jobs = {
       if (!bed) continue;
       return { type: 'rescue', victimId: q.id, bedId: bed.id, resKey: 'rescue:' + q.id };
     }
-    // emergency first aid: anyone can press a bandage to a bleeding wound
+    // emergency first aid: anyone can press a bandage to a bleeding wound.
+    // The gate must MATCH what the tend step will accept, or we livelock.
     if (p.canDo('caring')) {
       for (const q of world.pawns) {
         if ((!q.isColonist() && !q.prisoner) || q.dead || q === p) continue;
         if (!q.downed && !q.inBedId) continue;
-        if (!q.injuries.some(inj => !inj.tended && inj.bleed > 0)) continue;
+        if (!q.needsTending()) continue;
+        if (!q.injuries.some(inj => !inj.tended && inj.bleed > 0) && !q.diseases.length) continue;
         if (Jobs.taken(world, 'tend:' + q.id, p)) continue;
         return { type: 'tend', patientId: q.id, resKey: 'tend:' + q.id, phase: 'med' };
       }
@@ -327,6 +356,26 @@ const Jobs = {
 
   // ---- work scanners (by role) -------------------------------------------
   scanners: {
+    // Peacetime armament: claim the best weapon lying around. Without this,
+    // crafted and looted arms rust in the stockpile until the first volley.
+    equip(world, p) {
+      if (world.threat || !p.canFight(world)) return null;
+      const myValue = p.weapon ? (WEAPONS[p.weapon].v || 0) : -1;
+      const prefMelee = p.hasTrait('brawler') || p.skill('Melee') > p.skill('Shooting') + 3;
+      let best = null, bestScore = myValue;
+      for (const s of world.items) {
+        if (s.kind !== 'weaponItem' || s.carried || !s.meta) continue;
+        if (Jobs.taken(world, 'item:' + s.id, p)) continue;
+        const def = WEAPONS[s.meta.key];
+        if (!def) continue;
+        let score = def.v || 0;
+        if (prefMelee === !!def.melee) score *= 1.5;
+        if (score > bestScore * 1.25 + 5) { bestScore = score; best = s; }
+      }
+      if (!best) return null;
+      return { type: 'equip', itemId: best.id, tx: best.x, ty: best.y, resKey: 'item:' + best.id };
+    },
+
     doctor(world, p) {
       if (!p.canDo('caring')) return null;
       for (const q of world.pawns) {
@@ -638,8 +687,11 @@ const Jobs = {
 
     hideAt(world, p, j) {
       const r = Jobs.advance(world, p, j.tx, j.ty);
-      if (r === 'stuck') Jobs.endJob(world, p);
-      if (p.mode !== 'hide') Jobs.endJob(world, p);
+      if (r === 'stuck') { Jobs.endJob(world, p); return; }
+      if (p.mode !== 'hide') { Jobs.endJob(world, p); return; }
+      // long sieges: periodically re-decide so hiders eat, rescue, and feed
+      j.held = (j.held || 0) + 1;
+      if (j.held >= 200) Jobs.endJob(world, p);
     },
 
     combat(world, p, j) { Combat.stepFighter(world, p, j); },
@@ -802,7 +854,7 @@ const Jobs = {
           foe.inBedId = bed.id;
           foe.addThought(world, 'imprisoned');
           world.captureQueue = world.captureQueue.filter(cq => cq.pawnId !== j.victimId);
-          Chron.log(world, `${foe.full()} of the ${foe.factionName || 'raiders'} was carried, bleeding, to the cell. ${world.rng.chance(0.5) ? 'Perhaps there is a colonist in there somewhere.' : 'The wardens will work on ' + foe.him + '.'}`, { icon: '⛓️', tone: 'neutral', major: true });
+          Chron.log(world, `${foe.full()} of ${U.the(foe.factionName || 'the raiders')} was carried, bleeding, to the cell. ${world.rng.chance(0.5) ? 'Perhaps there is a colonist in there somewhere.' : 'The wardens will work on ' + foe.him + '.'}`, { icon: '⛓️', tone: 'neutral', major: true });
           Jobs.endJob(world, p);
         }
       }
@@ -876,7 +928,7 @@ const Jobs = {
       if (!j.carrying) {
         const r = Jobs.advance(world, p, corpse.x, corpse.y);
         if (r === 'stuck') { Jobs.endJob(world, p); return; }
-        if (r === 'arrived') { j.carrying = true; corpse.carried = true; }
+        if (r === 'arrived') { j.carrying = true; Things.pickUpStack(world, corpse); }
       } else {
         corpse.x = Math.round(p.x); corpse.y = Math.round(p.y);
         const r = Jobs.advanceAdjacent(world, p, block.x, block.y);
@@ -1031,6 +1083,22 @@ const Jobs = {
       }
     },
 
+    equip(world, p, j) {
+      const s = world.byId[j.itemId];
+      if (!s || s.carried) { Jobs.endJob(world, p); return; }
+      const r = Jobs.advance(world, p, s.x, s.y);
+      if (r === 'stuck') { Jobs.endJob(world, p); return; }
+      if (r === 'arrived') {
+        const key = s.meta.key;
+        if (Things.take(world, s, 1) > 0) {
+          const old = p.weapon;
+          p.weapon = key;
+          if (old && old !== 'fists') Things.drop(world, Math.round(p.x), Math.round(p.y), 'weaponItem', 1, { key: old });
+        }
+        Jobs.endJob(world, p);
+      }
+    },
+
     repair(world, p, j) {
       const b = world.byId[j.bId];
       if (!b || b.blueprint) { Jobs.endJob(world, p); return; }
@@ -1130,13 +1198,18 @@ const Jobs = {
       if (!j.carrying) {
         const r = Jobs.advance(world, p, corpse.x, corpse.y);
         if (r === 'stuck') { Jobs.endJob(world, p); return; }
-        if (r === 'arrived') { j.carrying = true; corpse.carried = true; }
+        if (r === 'arrived') { j.carrying = true; Things.pickUpStack(world, corpse); }
       } else {
         corpse.x = Math.round(p.x); corpse.y = Math.round(p.y);
         const r = Jobs.advance(world, p, grave.x, grave.y);
         if (r === 'stuck') { corpse.carried = false; Jobs.endJob(world, p); return; }
         if (r === 'arrived') {
           grave.meta = grave.meta || {};
+          if (grave.meta.occupant) { // someone was faster; this grave is taken
+            Jobs.markTabu(world, 'grave:' + grave.id, 5000);
+            Jobs.endJob(world, p);
+            return;
+          }
           grave.meta.occupant = corpse.meta.label;
           grave.meta.epitaph = Chron.epitaph(world, corpse.meta);
           grave.meta.buriedDay = world.day;
@@ -1155,7 +1228,7 @@ const Jobs = {
       if (!j.carrying) {
         const r = Jobs.advance(world, p, corpse.x, corpse.y);
         if (r === 'stuck') { Jobs.endJob(world, p); return; }
-        if (r === 'arrived') { j.carrying = true; corpse.carried = true; p.addThought(world, 'sawCorpse'); }
+        if (r === 'arrived') { j.carrying = true; Things.pickUpStack(world, corpse); p.addThought(world, 'sawCorpse'); }
       } else {
         corpse.x = Math.round(p.x); corpse.y = Math.round(p.y);
         // to the map edge, away from home
@@ -1308,8 +1381,14 @@ const Jobs = {
         if (j.wk >= 20) {
           p.addThought(world, 'paidRespects');
           p.needs.rec = Math.min(1, p.needs.rec + 0.1);
-          if (world.rng.chance(0.2) && grave.meta && grave.meta.occupant) {
-            Chron.log(world, `${p.label()} stood a while at ${grave.meta.occupant}'s grave${world.season === 'Winter' ? ', brushing off the snow' : ''}.`, { icon: ICONS.grave, tone: 'neutral' });
+          p.lastGraveVisitT = world.t;
+          if (grave.meta && grave.meta.occupant) {
+            const g = Chron.gate(world, 'graveVisit', 2.5);
+            if (g === 'log' && world.rng.chance(0.5)) {
+              Chron.log(world, `${p.label()} stood a while at ${grave.meta.occupant}'s grave${world.season === 'Winter' ? ', brushing off the snow' : ''}.`, { icon: ICONS.grave, tone: 'neutral' });
+            } else if (g === 'summary') {
+              Chron.log(world, `Grief has worn a path up the hill. The chronicle will stop counting the footsteps.`, { icon: ICONS.grave, tone: 'neutral' });
+            }
           }
           Jobs.endJob(world, p);
         }
