@@ -29,6 +29,12 @@ class Pawn {
     p.faction = opts.faction || 'colony';
     p.gender = opts.gender || (rng.chance(0.06) ? 'nb' : rng.chance(0.5) ? 'm' : 'f');
     p.name = opts.name || Names.pawnName(rng, p.gender);
+    // the dead keep their names a while — no doppelgangers at the funeral
+    if (!opts.name && world.usedNames) {
+      for (let tries = 0; tries < 6 && world.usedNames.has(p.name.first); tries++) p.name = Names.pawnName(rng, p.gender);
+      world.usedNames.add(p.name.first);
+      if (world.usedNames.size > 120) world.usedNames.clear(); // very old worlds may reuse
+    }
     // some arrive already grey — elders make deathbed arcs and grandparents possible
     const years = opts.age != null ? opts.age : (rng.chance(0.18) ? rng.ri(55, 68) : rng.ri(19, 52));
     p.ageDays = Math.round(years * world.daysPerYear);
@@ -174,6 +180,7 @@ class Pawn {
   workSpeed(s) {
     let m = 0.55 + this.skill(s) * 0.075;
     for (const t of this.traits) if (TRAITS[t].work) m *= TRAITS[t].work;
+    if (s === 'Plants' && this.hasTrait('greenthumb')) m *= 1.15;
     m *= this.capManip() * 0.5 + 0.5;
     if (this.inspired === 'frenzy') m *= 1.6;
     return m;

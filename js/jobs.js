@@ -62,7 +62,8 @@ const Jobs = {
     // only re-path when the goal actually moved meaningfully (chasing) or path spent
     const goalMoved = p.pathGoalX == null || U.dist(p.pathGoalX, p.pathGoalY, tx, ty) > 2.4;
     if (!p.path || !p.path.length || goalMoved) {
-      p.path = world.map.path(px, py, tx, ty, world, opts || (p.faction !== 'colony' && p.faction !== 'outlander' ? { hostile: true } : null));
+      // hostile searches get a tighter budget: raids must never stall the frame
+      p.path = world.map.path(px, py, tx, ty, world, opts || (p.faction !== 'colony' && p.faction !== 'outlander' ? { hostile: true, maxExpand: 2600 } : null));
       p.pathGoalX = tx; p.pathGoalY = ty;
       if (!p.path) { if (p.job) Jobs.markTabu(world, p.job.resKey); return 'stuck'; }
     }
@@ -723,6 +724,11 @@ const Jobs = {
             if (bed && bed.ownerId === p.id) p.addThought(world, 'goodBedroom');
           }
           if (room && room.indoor && room.kind === 'barracks') p.addThought(world, 'crampedQuarters');
+          // the jealous keep score of who sleeps on what
+          if (p.hasTrait('jealous') && (j.ground || (j.bedQ || 1) < 1) &&
+              world.buildings.some(b => !b.blueprint && BUILDINGS[b.key].bed && (BUILDINGS[b.key].restQ || 0) >= 1 && b.ownerId && b.ownerId !== p.id)) {
+            p.addThought(world, 'jealousEnvy');
+          }
           // baby in the room cried?
           const baby = world.pawns.find(q => q.isColonist() && q.stage(world) === 'baby' && (q.family.mo === p.id || q.family.fa === p.id) && q.needs.food < 0.5);
           if (baby) p.addThought(world, 'sleepInterrupted');
@@ -969,6 +975,7 @@ const Jobs = {
           p.gainXp(world, 'Plants', 45);
           p.stats.harvests++;
           world.stats.harvested++;
+          if (p.hasTrait('greenthumb') && world.rng.chance(0.1)) p.addThought(world, 'gardenJoy');
           Jobs.endJob(world, p);
         }
       }

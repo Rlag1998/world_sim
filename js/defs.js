@@ -157,6 +157,9 @@ const THOUGHTS = {
   vaultTreasure: { l: 'the vault made us rich', m: 8, d: 4 },
   wandererReturned: { l: 'they came back to us', m: 8, d: 4 },
   newWorldHope: { l: 'we survived the crash', m: 12, d: 6 },
+  jealousEnvy: { l: 'others sleep better than me', m: -4, d: 0.8 },
+  gardenJoy: { l: 'hands in the soil', m: 3, d: 0.5 },
+  lastStand: { l: 'I was the last one standing', m: 6, d: 5 },
 };
 
 const PLANTS = {

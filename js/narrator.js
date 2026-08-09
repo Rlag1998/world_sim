@@ -28,7 +28,7 @@ const Chron = {
       text, icon: opts.icon || '', tone: opts.tone || 'neutral', major: !!opts.major,
     };
     world.chron.entries.push(e);
-    if (world.chron.entries.length > 900) world.chron.entries.splice(0, world.chron.entries.length - 900);
+    if (world.chron.entries.length > 1600) world.chron.entries.splice(0, world.chron.entries.length - 1600);
     world.uiDirty = true;
     if (opts.at && typeof Renderer !== 'undefined' && Renderer.focus && opts.major) {
       Renderer.focus(world, opts.at.x, opts.at.y, 4, null);

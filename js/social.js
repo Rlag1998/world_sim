@@ -79,7 +79,8 @@ const Social = {
     if (opAB <= -15) options.push({ k: 'insult', w: 3 + (a.hasTrait('volatile') ? 3 : 0) });
     const attract = Social.attraction(world, a, b);
     const single = !a.loverId && !a.spouseId;
-    if (attract > 0.22 && (single || (a.hasTrait('romantic') && Social.opinion(a, world.byId[a.spouseId || a.loverId]) < 10))) {
+    const bothSettled = a.faction === 'colony' && b.faction === 'colony'; // no heartbreak-by-caravan
+    if (bothSettled && attract > 0.22 && (single || (a.hasTrait('romantic') && Social.opinion(a, world.byId[a.spouseId || a.loverId]) < 10))) {
       options.push({ k: 'flirt', w: 2 + attract * 4 + (a.hasTrait('romantic') ? 3 : 0) });
     }
     const choice = rng.pickw(options, o => o.w).k;

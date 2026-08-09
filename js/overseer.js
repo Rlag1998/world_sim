@@ -196,7 +196,8 @@ const Overseer = {
           { key: 'craftSpot', dx: 6, dy: 2 }, { key: 'butcher', dx: 2, dy: 5 },
         ],
       });
-      Overseer.placeFarm(world, 'rice', 7, 5);
+      // hardy crops for cold worlds; fast rice where the sun allows it
+      Overseer.placeFarm(world, world.biome === 'boreal' ? 'potato' : 'rice', 7, 5);
       Overseer.placeFarm(world, 'potato', 7, 5);
       world.zones.weddingSpot = { x: home.x, y: home.y + 1 };
       // a first firing line, day one: crude barricades south of the cabin
@@ -389,6 +390,22 @@ const Overseer = {
       plan.cottonField = true;
       return;
     }
+    // a corn field feeds a village; plant one when the mouths demand it
+    if (colonists.length >= 6 && !plan.cornField && (world.season === 'Spring' || world.season === 'Summer')) {
+      if (Overseer.placeFarm(world, 'corn', 7, 5)) { plan.cornField = true; return; }
+      plan.cornField = true; // no room; don't retry forever
+    }
+    // a bed by the hearth for the colony animal
+    if (!plan.petBedPlaced && world.animals.some(a => a.tame && !a.dead && !a.caravan)) {
+      const hearth = Things.findBuilding(world, b => b.key === 'hearth' || b.key === 'campfire');
+      if (hearth) {
+        const spot = world.map.findSpotNear(hearth.x + 1, hearth.y + 1, 4, (x, y) => !world.map.bIdx[world.map.idx(x, y)] && world.map.standable(x, y, world));
+        if (spot) {
+          const b = Things.addBlueprint(world, 'petBed', spot.x, spot.y);
+          if (b) { world.plan.placed.push({ key: 'petBed', x: spot.x, y: spot.y }); plan.petBedPlaced = true; return; }
+        }
+      }
+    }
     // turrets flanking the gate once gunsmithing is mastered
     if (world.techsDone.includes('gunsmithing') && plan.perimeterPlanned && !plan.turretsPlanned && Things.count(world, 'steel') >= 46) {
       plan.turretsPlanned = true;
@@ -532,7 +549,12 @@ const Overseer = {
       if ((world.season === 'Fall' || world.season === 'Winter')) {
         const coatless = colonists.filter(p => !['coat', 'parka'].includes(p.apparel)).length;
         if (coatless > 0 && Things.count(world, 'leather') >= 14) {
-          ensureBill('coat', { bench: 'tailoring', skill: 'Crafting', wk: 26, cost: { leather: 14 }, out: 'apparel', outKey: 'coat' }, Math.min(coatless, 3));
+          ensureBill('coat', { bench: 'tailoring', skill: 'Crafting', wk: 26, cost: { leather: 14 }, out: 'apparel', outKey: 'coat' }, Math.min(coatless - groundApparel('coat'), 3));
+        }
+        // parkas for worlds where winter means it
+        if (world.biome === 'boreal' && Things.count(world, 'cloth') >= 10 && Things.count(world, 'leather') >= 8) {
+          const parkaless = colonists.filter(p => p.apparel !== 'parka').length;
+          ensureBill('parka', { bench: 'tailoring', skill: 'Crafting', wk: 30, cost: { cloth: 10, leather: 8 }, out: 'apparel', outKey: 'parka' }, U.clamp(Math.min(parkaless, 2) - groundApparel('parka'), 0, 2));
         }
       }
     }

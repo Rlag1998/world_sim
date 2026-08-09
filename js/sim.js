@@ -25,6 +25,7 @@ const Sim = {
     };
     globalThis.W = world;
     world.t = 7 * 60; // land in the morning light
+    world.usedNames = new Set();
     world.biome = rng.pick(['temperate', 'temperate', 'boreal', 'arid']);
     world.map = new GameMap(BAL.MAP_W, BAL.MAP_H);
     world.map.gen(rng, world.biome);
@@ -88,8 +89,8 @@ const Sim = {
     const rest = survivors.filter(p => p !== bestShot);
     rest[0].weapon = 'pistol';
     rest[1].weapon = 'knife';
-    // scattered supplies from the wreck
-    Things.drop(world, home.x - 1, home.y + 3, 'mealPack', 32);
+    // scattered supplies from the wreck (cold worlds get deeper rations)
+    Things.drop(world, home.x - 1, home.y + 3, 'mealPack', world.biome === 'boreal' ? 44 : 32);
     Things.drop(world, home.x - 1, home.y + 5, 'berries', 25);
     Things.drop(world, home.x + 2, home.y + 3, 'medkit', 5);
     Things.drop(world, home.x, home.y + 4, 'wood', 80);
@@ -670,13 +671,19 @@ const Sim = {
         // the oldest mercy on the rim: when all hope is down, a stranger walks out of the dust.
         // Not once per world — but rare enough that each visit becomes legend.
         world.strangerCooldownUntil = world.day + 30;
+        world.strangerCount = (world.strangerCount || 0) + 1;
         const edge = world.map.randomEdgeSpot(world.rng, world);
         const p = Pawn.make(world, { faction: 'colony', x: edge.x, y: edge.y, weapon: 'revolver' });
         p.skills.Medicine.lv = Math.max(p.skills.Medicine.lv, 7);
         p.apparel = 'coat';
         world.pawns.push(p); world.byId[p.id] = p;
         Overseer.assignRolesDaily(world);
-        Chron.log(world, `Every colonist lies in the dirt, bleeding into ${world.colonyName}'s soil — and then, at the edge of the map, a stranger. ${p.full()}, coat black as a closed book, walking in without hurry. "${world.rng.pick(["Heard there was trouble.", "Looks like I'm late.", "Don't die yet. I just got here."])}"`, { icon: '🥷', tone: 'good', major: true });
+        const visitProse = world.strangerCount === 1
+          ? `Every colonist lies in the dirt, bleeding into ${world.colonyName}'s soil — and then, at the edge of the map, a stranger. ${p.full()}, coat black as a closed book, walking in without hurry. "${world.rng.pick(["Heard there was trouble.", "Looks like I'm late.", "Don't die yet. I just got here."])}"`
+          : world.strangerCount === 2
+            ? `It has happened again: all of ${world.colonyName} in the dirt, and again a stranger on the road — a different face, the same unhurried walk, the same dark coat. ${p.full()} this time. The colony is starting to suspect the coats know each other.`
+            : `A third dark coat on the horizon at the worst possible hour. Nobody asks their name anymore; the survivors just point ${p.full()} toward the bleeding and put the stew on.`;
+        Chron.log(world, visitProse, { icon: '🥷', tone: 'good', major: true });
         Chron.remember(world, { kind: 'stranger', text: `a stranger in black saved the colony from its darkest hour`, pawns: [p.id] });
         Chron.maybeChapter(world, 'stranger', 'The Stranger');
         Renderer.cinematic(world, `A stranger arrives at the darkest hour`, p, 9);
@@ -713,6 +720,7 @@ const Sim = {
       },
       huntQueue: world.huntQueue, chopQueue: [...world.chopQueue], mineQueue: [...world.mineQueue],
       weddingQueue: world.weddingQueue, affairs: world.affairs, gonePawns: world.gonePawns.map(strip),
+      gatherings: world.gatherings, strangerCooldownUntil: world.strangerCooldownUntil || 0, strangerCount: world.strangerCount || 0,
       pawns: world.pawns.map(strip),
       animals: world.animals.map(a => { const o = { ...a }; delete o.path; delete o.target2; return o; }),
       items: world.items,
@@ -742,8 +750,9 @@ const Sim = {
       v: 1, seed: d.seed, rng, t: d.t,
       daysPerYear: BAL.DAYS_PER_SEASON * 4,
       byId: {}, pawns: [], animals: [], items: d.items, buildings: d.buildings,
-      raids: [], gatherings: [], fights: [], affairs: d.affairs || [], weddingQueue: d.weddingQueue || [],
+      raids: [], gatherings: d.gatherings || [], fights: [], affairs: d.affairs || [], weddingQueue: d.weddingQueue || [],
       captureQueue: [], gonePawns: [],
+      strangerCooldownUntil: d.strangerCooldownUntil || 0, strangerCount: d.strangerCount || 0,
       reservations: {}, tabuMap: {}, huntQueue: d.huntQueue || [], chopQueue: new Set(d.chopQueue || []), mineQueue: new Set(d.mineQueue || []),
       bills: d.bills || [], techsDone: d.techsDone || [], research: d.research,
       zones: { stock: new Set(d.zones.stock || []), farms: d.zones.farms || [], defense: d.zones.defense, graveyard: d.zones.graveyard, weddingSpot: d.zones.weddingSpot },
@@ -787,8 +796,19 @@ const Sim = {
     }
     for (const b of world.buildings) { world.byId[b.id] = b; maxId = Math.max(maxId, b.id); map.bIdx[map.idx(b.x, b.y)] = b.id; }
     U.setUidFloor(maxId + 1);
-    // stray raiders from an interrupted battle just leave
-    for (const p of world.pawns) if ((p.faction === 'pirate' || p.faction === 'tribe') && !p.prisoner) p.fleeing = true;
+    // names in use, so reloads don't spawn doppelgangers either
+    world.usedNames = new Set();
+    for (const p of [...world.pawns, ...world.gonePawns]) if (p.name && p.name.first) world.usedNames.add(p.name.first);
+    // stray raiders from an interrupted battle just leave — empty-handed:
+    // pre-assigning their exit skips the grab-and-kidnap roll entirely
+    for (const p of world.pawns) {
+      if ((p.faction === 'pirate' || p.faction === 'tribe') && !p.prisoner) {
+        p.fleeing = true;
+        const edges = [{ x: 2, y: Math.round(p.y) }, { x: map.w - 3, y: Math.round(p.y) }, { x: Math.round(p.x), y: 2 }, { x: Math.round(p.x), y: map.h - 3 }];
+        p.fleeTarget = edges.reduce((a, b) => U.dist(p.x, p.y, a.x, a.y) < U.dist(p.x, p.y, b.x, b.y) ? a : b);
+        p.kidnapping = null;
+      }
+    }
     Sim.deriveTime(world);
     Sim.computeTemp(world);
     map.recomputeRooms(world);

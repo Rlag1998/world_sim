@@ -25,11 +25,27 @@ const Combat = {
       }
     } else if (!newThreat && world.threat) {
       world.threat = false;
+      world.lastStandNoted = false;
       for (const p of world.pawns) {
         if (p.mode !== 'normal') { p.mode = 'normal'; Jobs.endJob(world, p); }
         p.station = null;
       }
       if (!berserker) Combat.afterBattle(world);
+    }
+    // the finale gets its beat: one defender left upright with enemies still in the field
+    if (world.threat && !world.lastStandNoted) {
+      const colonists = world.pawns.filter(q => q.isColonist());
+      const standing = colonists.filter(q => !q.downed);
+      if (colonists.length >= 2 && standing.length === 1) {
+        world.lastStandNoted = true;
+        const last = standing[0];
+        last.addThought(world, 'lastStand');
+        Chron.log(world, Chron.pick(world, [
+          `Only ${last.label()} still stands. ${U.cap(last.he)} ${last.gender === 'nb' ? 'reload' : 'reloads'} with shaking hands, between the fallen and the enemy.`,
+          `And then there was one: ${last.label()}, back to the wall, whole colony behind ${last.him} in the dirt.`,
+        ]), { icon: ICONS.raid, tone: 'bad', major: true });
+        Renderer.cinematic(world, `${last.label()}'s last stand`, last, 9);
+      }
     }
   },
 
